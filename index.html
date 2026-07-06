@@ -23,6 +23,13 @@
         .view-section.active { display: block; animation: fadeIn 0.4s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
+        /* KPI Badges */
+        .kpi-container { display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; }
+        .kpi-badge { padding: 12px 20px; border-radius: 8px; font-weight: bold; color: white; display: flex; flex-direction: column; box-shadow: 0 2px 4px rgba(0,0,0,0.1); flex: 1; min-width: 150px; text-align: center; }
+        .kpi-total { background: #10b981; }
+        .kpi-filtered { background: #3b82f6; }
+        .kpi-value { font-size: 24px; margin-top: 5px; }
+
         /* Cards & Lists */
         .company-group { background: white; border-radius: 8px; padding: 15px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
         .company-title { font-size: 18px; color: #374151; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px; margin-bottom: 15px; font-weight: bold; }
@@ -38,10 +45,10 @@
         
         /* Charts & Filters */
         .chart-container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        .filter-bar { display: flex; gap: 15px; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid #e5e7eb; }
-        .filter-item { display: flex; flex-direction: column; flex: 1; }
+        .filter-bar { display: flex; gap: 15px; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid #e5e7eb; flex-wrap: wrap; }
+        .filter-item { display: flex; flex-direction: column; flex: 1; min-width: 140px; }
         .filter-item label { font-size: 12px; font-weight: bold; color: #6b7280; margin-bottom: 4px; text-transform: uppercase; }
-        .filter-item select { padding: 8px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; outline: none; }
+        .filter-item select, .filter-item input { padding: 8px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; outline: none; }
 
         #loading { text-align: center; color: #6b7280; padding: 20px; font-size: 18px; font-weight: bold; }
     </style>
@@ -69,10 +76,26 @@
     </div>
 
     <div id="overview-view" class="view-section">
+        
+        <div class="kpi-container">
+            <div class="kpi-badge kpi-total">
+                <span>Grand Total (All Scheduled)</span>
+                <span class="kpi-value" id="kpi-grand-total">0</span>
+            </div>
+            <div class="kpi-badge kpi-filtered">
+                <span>Showing in View</span>
+                <span class="kpi-value" id="kpi-filtered-total">0</span>
+            </div>
+        </div>
+
         <div class="chart-container">
-            <h2 style="margin-top: 0; color: #374151;">Total Active Scheduled Workers</h2>
+            <h2 style="margin-top: 0; color: #374151;">Worker Analytics</h2>
             
             <div class="filter-bar">
+                <div class="filter-item">
+                    <label>Filter by Date</label>
+                    <input type="date" id="filter-date" onchange="renderOverviewView()">
+                </div>
                 <div class="filter-item">
                     <label>Filter by Company</label>
                     <select id="filter-company" onchange="renderOverviewView()"><option value="All">All Companies</option></select>
@@ -94,16 +117,35 @@
         let globalData = [];
         let todayChartInstance = null;
         let overviewChartInstance = null;
-        
-        // Chart.js Color Palette
         const chartColors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#f97316'];
 
+        // --- Date Helper Functions ---
         function isToday(dateStr) {
             const today = new Date();
             const d = new Date(dateStr);
-            return d.getDate() === today.getDate() &&
-                   d.getMonth() === today.getMonth() &&
-                   d.getFullYear() === today.getFullYear();
+            return d.setHours(0,0,0,0) === today.setHours(0,0,0,0);
+        }
+
+        function isWithinNext7Days(dateStr) {
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            const target = new Date(dateStr);
+            target.setHours(0,0,0,0);
+            
+            const diffTime = target - today;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            // Show today + next 6 days (1 week window)
+            return diffDays >= 0 && diffDays <= 6;
+        }
+
+        function isExactDate(dateStr, filterDateStr) {
+            if(!filterDateStr) return false;
+            const target = new Date(dateStr);
+            // Convert sheet date to YYYY-MM-DD for comparison
+            const targetFormat = target.getFullYear() + "-" + 
+                                String(target.getMonth() + 1).padStart(2, '0') + "-" + 
+                                String(target.getDate()).padStart(2, '0');
+            return targetFormat === filterDateStr;
         }
 
         function switchTab(viewId, btnElement) {
@@ -135,74 +177,67 @@
             const companySelect = document.getElementById('filter-company');
             const blockSelect = document.getElementById('filter-block');
             
+            // Clear existing to avoid duplicates on reload
+            companySelect.innerHTML = '<option value="All">All Companies</option>';
+            blockSelect.innerHTML = '<option value="All">All Blocks</option>';
+
             companies.forEach(c => companySelect.add(new Option(c, c)));
             blocks.forEach(b => blockSelect.add(new Option(b, b)));
         }
 
-        // ---------- TODAY VIEW LOGIC ----------
         function renderTodayView() {
             const todayData = globalData.filter(worker => isToday(worker.date));
-            const todayCompanies = groupData(todayData);
-            
-            renderList('today-dashboard', todayCompanies, true);
+            renderList('today-dashboard', groupData(todayData), true);
             drawTodayChart(todayData);
+        }
+
+        function renderOverviewView() {
+            const selectedCompany = document.getElementById('filter-company').value;
+            const selectedBlock = document.getElementById('filter-block').value;
+            const selectedDate = document.getElementById('filter-date').value;
+            
+            // Update Grand Total KPI
+            document.getElementById('kpi-grand-total').innerText = globalData.length;
+
+            let filteredData = globalData.filter(worker => {
+                const matchCompany = selectedCompany === "All" || worker.company === selectedCompany;
+                const matchBlock = selectedBlock === "All" || worker.block === selectedBlock;
+                
+                // DATE LOGIC: If date selected, exact match. If empty, show next 7 days.
+                const matchDate = selectedDate ? isExactDate(worker.date, selectedDate) : isWithinNext7Days(worker.date);
+
+                return matchCompany && matchBlock && matchDate;
+            });
+
+            // Update Filtered Total KPI
+            document.getElementById('kpi-filtered-total').innerText = filteredData.length;
+
+            renderList('overview-dashboard', groupData(filteredData), false);
+            drawOverviewChart(filteredData);
         }
 
         function drawTodayChart(data) {
             const ctx = document.getElementById('todayChart').getContext('2d');
             const counts = getCounts(data, 'company');
-            
             if (todayChartInstance) todayChartInstance.destroy();
-            
             todayChartInstance = new Chart(ctx, {
                 type: 'doughnut',
-                data: {
-                    labels: Object.keys(counts),
-                    datasets: [{ data: Object.values(counts), backgroundColor: chartColors }]
-                },
+                data: { labels: Object.keys(counts), datasets: [{ data: Object.values(counts), backgroundColor: chartColors }] },
                 options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
             });
-        }
-
-        // ---------- OVERVIEW VIEW LOGIC ----------
-        function renderOverviewView() {
-            const selectedCompany = document.getElementById('filter-company').value;
-            const selectedBlock = document.getElementById('filter-block').value;
-            
-            // Apply Filters
-            let filteredData = globalData.filter(worker => {
-                const matchCompany = selectedCompany === "All" || worker.company === selectedCompany;
-                const matchBlock = selectedBlock === "All" || worker.block === selectedBlock;
-                return matchCompany && matchBlock;
-            });
-
-            const overviewCompanies = groupData(filteredData);
-            renderList('overview-dashboard', overviewCompanies, false);
-            drawOverviewChart(filteredData);
         }
 
         function drawOverviewChart(data) {
             const ctx = document.getElementById('overviewChart').getContext('2d');
             const counts = getCounts(data, 'company');
-            
             if (overviewChartInstance) overviewChartInstance.destroy();
-            
             overviewChartInstance = new Chart(ctx, {
                 type: 'bar',
-                data: {
-                    labels: Object.keys(counts),
-                    datasets: [{
-                        label: 'Workers Scheduled',
-                        data: Object.values(counts),
-                        backgroundColor: '#3b82f6',
-                        borderRadius: 4
-                    }]
-                },
+                data: { labels: Object.keys(counts), datasets: [{ label: 'Scheduled Workers', data: Object.values(counts), backgroundColor: '#3b82f6', borderRadius: 4 }] },
                 options: { responsive: true, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
             });
         }
 
-        // ---------- UTILITIES ----------
         function groupData(workerArray) {
             return workerArray.reduce((acc, worker) => {
                 if (!acc[worker.company]) acc[worker.company] = [];
@@ -221,12 +256,10 @@
         function renderList(containerId, companies, showCancelButton) {
             const container = document.getElementById(containerId);
             container.innerHTML = '';
-            
             if(Object.keys(companies).length === 0) {
                 container.innerHTML = '<div style="text-align:center; color:#6b7280; padding: 20px;">✅ No workers found for this selection.</div>';
                 return;
             }
-
             for (const companyName in companies) {
                 const groupDiv = document.createElement('div');
                 groupDiv.className = 'company-group';
@@ -239,7 +272,6 @@
                         ${showCancelButton ? `<button class="cancel-btn" onclick="cancelWorker(${w.rowNumber}, this)">Cancel ❌</button>` : ''}
                     </div>
                 `).join('');
-
                 groupDiv.innerHTML = `<div class="company-title">🏢 ${companyName} (${companies[companyName].length})</div><div>${workersHTML}</div>`;
                 container.appendChild(groupDiv);
             }
@@ -247,20 +279,16 @@
 
         async function cancelWorker(rowNumber, btnElement) {
             if(!confirm("Cancel this worker? The Master List and charts will update instantly.")) return;
-            
             btnElement.disabled = true;
             btnElement.innerText = "Cancelling...";
-
             try {
                 const response = await fetch(API_URL, {
                     method: 'POST',
                     body: JSON.stringify({ rowNumber: rowNumber }),
                     headers: { 'Content-Type': 'text/plain;charset=utf-8' }
                 });
-                
                 const result = await response.json();
                 if(result.success) {
-                    // Instantly remove worker from local data and re-render everything!
                     globalData = globalData.filter(w => w.rowNumber !== rowNumber);
                     renderTodayView();
                     renderOverviewView();
