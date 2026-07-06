@@ -501,11 +501,11 @@
     </section>
 
     <nav class="tabs" aria-label="Dashboard tabs">
-      <button class="tab-btn active" type="button" data-view="overview-view">📋 All Records</button>
-      <button class="tab-btn" type="button" data-view="today-view">📅 Today</button>
+      <button class="tab-btn active" type="button" data-view="today-view">📅 Today</button>
+      <button class="tab-btn" type="button" data-view="overview-view">📋 All Records</button>
     </nav>
 
-    <section id="today-view" class="view-section">
+    <section id="today-view" class="view-section active">
       <div class="content-grid">
         <aside class="panel">
           <div class="panel-header">
@@ -534,7 +534,7 @@
       </div>
     </section>
 
-    <section id="overview-view" class="view-section active">
+    <section id="overview-view" class="view-section">
       <section class="panel filter-panel">
         <div class="panel-header">
           <div>
@@ -665,8 +665,21 @@
 
       const str = String(value).trim();
 
-      // Best format from backend: YYYY-MM-DD or ISO string starting with YYYY-MM-DD.
-      const iso = /^(\d{4})-(\d{2})-(\d{2})/.exec(str);
+      // FIX: Full ISO timestamp with a time component (e.g. "2026-07-06T00:00:00.000Z").
+      // Apps Script serializes real Sheet Date objects to UTC ISO strings. A cell that
+      // represents local midnight in Malaysia (UTC+8) becomes "...T16:00:00.000Z" on the
+      // PREVIOUS day once converted to UTC. Reading the date digits straight off that
+      // string (the old behavior) silently shifted every date back by one day, which is
+      // why "today" always came up empty. Parse it as a real Date and read back the
+      // LOCAL date parts instead, so it matches the browser's local "today" again.
+      const isoWithTime = /^\d{4}-\d{2}-\d{2}T/.exec(str);
+      if (isoWithTime) {
+        const parsed = new Date(str);
+        return Number.isNaN(parsed.getTime()) ? null : dateToYmd(parsed);
+      }
+
+      // Plain date-only string, no time/timezone info to worry about: YYYY-MM-DD.
+      const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(str);
       if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
 
       // Malaysia-friendly fallback: DD/MM/YYYY or DD-MM-YYYY.
