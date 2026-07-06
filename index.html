@@ -618,6 +618,13 @@
       '#ea580c', '#16a34a', '#9333ea', '#0f766e', '#be123c', '#4f46e5'
     ];
 
+    // With many distinct companies, showing every single one on a bar/doughnut chart
+    // makes bars unreadable slivers and repeats the (limited) color palette endlessly.
+    // Cap the chart to the top N companies by count and fold the rest into "Others".
+    // Tweak this number if you want more/fewer individual slices shown before bucketing.
+    const TOP_N_COMPANIES = 8;
+    const OTHERS_LABEL = 'Others';
+
     const els = {
       statusDot: document.getElementById('status-dot'),
       statusText: document.getElementById('status-text'),
@@ -787,6 +794,27 @@
       }, {});
     }
 
+    // Sorts counts descending, keeps the top N, and folds everything else into
+    // a single "Others" bucket so the chart stays readable no matter how many
+    // distinct companies (or other categories) exist in the underlying data.
+    function getTopNCounts(counts, topN) {
+      const entries = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+
+      if (entries.length <= topN) {
+        return { entries, othersCount: 0, othersGroupSize: 0 };
+      }
+
+      const top = entries.slice(0, topN);
+      const rest = entries.slice(topN);
+      const othersCount = rest.reduce((sum, [, count]) => sum + count, 0);
+
+      return {
+        entries: [...top, [OTHERS_LABEL, othersCount]],
+        othersCount,
+        othersGroupSize: rest.length
+      };
+    }
+
     function groupData(workerArray) {
       return workerArray.reduce((acc, worker) => {
         if (!acc[worker.company]) acc[worker.company] = [];
@@ -919,8 +947,9 @@
     function drawChart(canvasId, noteEl, chartType, data, label) {
       const canvas = document.getElementById(canvasId);
       const counts = getCounts(data, 'company');
-      const labels = Object.keys(counts);
-      const values = Object.values(counts);
+      const { entries, othersGroupSize } = getTopNCounts(counts, TOP_N_COMPANIES);
+      const labels = entries.map(([name]) => name);
+      const values = entries.map(([, count]) => count);
 
       if (canvasId === 'todayChart' && todayChartInstance) todayChartInstance.destroy();
       if (canvasId === 'overviewChart' && overviewChartInstance) overviewChartInstance.destroy();
@@ -935,7 +964,16 @@
         return null;
       }
 
-      noteEl.textContent = '';
+      // "Others" always renders in a neutral grey so it visually reads as a
+      // catch-all bucket rather than another individual company color.
+      const backgroundColor = labels.map((name, i) =>
+        name === OTHERS_LABEL ? '#94a3b8' : chartColors[i % chartColors.length]
+      );
+
+      noteEl.textContent = othersGroupSize > 0
+        ? `Showing top ${TOP_N_COMPANIES} companies by count. "Others" groups the remaining ${othersGroupSize} companies. Full breakdown is in the list/table below.`
+        : '';
+
       const ctx = canvas.getContext('2d');
       const chart = new Chart(ctx, {
         type: chartType,
@@ -944,7 +982,7 @@
           datasets: [{
             label,
             data: values,
-            backgroundColor: labels.map((_, i) => chartColors[i % chartColors.length]),
+            backgroundColor,
             borderRadius: chartType === 'bar' ? 8 : 0,
             borderWidth: 0
           }]
