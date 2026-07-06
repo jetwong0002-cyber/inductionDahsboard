@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Longmotive Induction Dashboard</title>
+    <title>Longmotive Command Center</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         /* Enterprise UI Styling */
@@ -36,8 +36,12 @@
         .cancel-btn { background-color: #ef4444; color: white; border: none; padding: 10px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: background 0.2s; }
         .cancel-btn:hover { background-color: #dc2828; }
         
-        /* Chart Container */
-        .chart-container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        /* Charts & Filters */
+        .chart-container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .filter-bar { display: flex; gap: 15px; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid #e5e7eb; }
+        .filter-item { display: flex; flex-direction: column; flex: 1; }
+        .filter-item label { font-size: 12px; font-weight: bold; color: #6b7280; margin-bottom: 4px; text-transform: uppercase; }
+        .filter-item select { padding: 8px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; outline: none; }
 
         #loading { text-align: center; color: #6b7280; padding: 20px; font-size: 18px; font-weight: bold; }
     </style>
@@ -57,22 +61,43 @@
     <div id="loading">📡 Fetching Live Data from Database...</div>
 
     <div id="today-view" class="view-section active">
+        <div class="chart-container" style="max-width: 400px; margin: 0 auto 20px auto;">
+            <h2 style="margin-top: 0; color: #374151; text-align: center; font-size: 18px;">Today's Headcount</h2>
+            <canvas id="todayChart"></canvas>
+        </div>
         <div id="today-dashboard"></div>
     </div>
 
     <div id="overview-view" class="view-section">
         <div class="chart-container">
-            <h2 style="margin-top: 0; color: #374151;">Total Active Scheduled Workers (Per Company)</h2>
-            <canvas id="companyChart"></canvas>
+            <h2 style="margin-top: 0; color: #374151;">Total Active Scheduled Workers</h2>
+            
+            <div class="filter-bar">
+                <div class="filter-item">
+                    <label>Filter by Company</label>
+                    <select id="filter-company" onchange="renderOverviewView()"><option value="All">All Companies</option></select>
+                </div>
+                <div class="filter-item">
+                    <label>Filter by Block</label>
+                    <select id="filter-block" onchange="renderOverviewView()"><option value="All">All Blocks</option></select>
+                </div>
+            </div>
+
+            <canvas id="overviewChart"></canvas>
         </div>
-        <div id="overview-dashboard" style="margin-top: 20px;"></div>
+        <div id="overview-dashboard"></div>
     </div>
 
     <script>
         const API_URL = "https://script.google.com/macros/s/AKfycbxq2HLWnl1KgT2sfP07LawSe821tF5y3Px92X4INTTosLwEVkP5hbP38LObcI63mT7iDg/exec";
-        let chartInstance = null; // Store chart to prevent redraw errors
+        
+        let globalData = [];
+        let todayChartInstance = null;
+        let overviewChartInstance = null;
+        
+        // Chart.js Color Palette
+        const chartColors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#f97316'];
 
-        // Utility: Check if a date string is today
         function isToday(dateStr) {
             const today = new Date();
             const d = new Date(dateStr);
@@ -81,11 +106,9 @@
                    d.getFullYear() === today.getFullYear();
         }
 
-        // Switch between Tabs
         function switchTab(viewId, btnElement) {
             document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-            
             document.getElementById(viewId).classList.add('active');
             btnElement.classList.add('active');
         }
@@ -93,99 +116,137 @@
         async function loadData() {
             try {
                 const response = await fetch(API_URL);
-                const data = await response.json();
+                globalData = await response.json();
                 
-                // 1. Filter data for TODAY
-                const todayData = data.filter(worker => isToday(worker.date));
-                
-                // 2. Prepare Grouped Data & Chart Data
-                const todayCompanies = groupData(todayData);
-                const allCompanies = groupData(data);
-                
-                // 3. Render UIs
-                renderList('today-dashboard', todayCompanies, true);
-                renderChart(data); // Draw Chart.js graph
+                populateFilters();
+                renderTodayView();
+                renderOverviewView();
                 
                 document.getElementById('loading').style.display = 'none';
             } catch (error) {
                 document.getElementById('loading').innerText = "⚠️ Error loading data. Please refresh.";
-                console.error(error);
             }
         }
 
-        function groupData(workerArray) {
-            const companies = {};
-            workerArray.forEach(worker => {
-                if (!companies[worker.company]) companies[worker.company] = [];
-                companies[worker.company].push(worker);
+        function populateFilters() {
+            const companies = [...new Set(globalData.map(w => w.company))].sort();
+            const blocks = [...new Set(globalData.map(w => w.block))].sort();
+            
+            const companySelect = document.getElementById('filter-company');
+            const blockSelect = document.getElementById('filter-block');
+            
+            companies.forEach(c => companySelect.add(new Option(c, c)));
+            blocks.forEach(b => blockSelect.add(new Option(b, b)));
+        }
+
+        // ---------- TODAY VIEW LOGIC ----------
+        function renderTodayView() {
+            const todayData = globalData.filter(worker => isToday(worker.date));
+            const todayCompanies = groupData(todayData);
+            
+            renderList('today-dashboard', todayCompanies, true);
+            drawTodayChart(todayData);
+        }
+
+        function drawTodayChart(data) {
+            const ctx = document.getElementById('todayChart').getContext('2d');
+            const counts = getCounts(data, 'company');
+            
+            if (todayChartInstance) todayChartInstance.destroy();
+            
+            todayChartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(counts),
+                    datasets: [{ data: Object.values(counts), backgroundColor: chartColors }]
+                },
+                options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
             });
-            return companies;
+        }
+
+        // ---------- OVERVIEW VIEW LOGIC ----------
+        function renderOverviewView() {
+            const selectedCompany = document.getElementById('filter-company').value;
+            const selectedBlock = document.getElementById('filter-block').value;
+            
+            // Apply Filters
+            let filteredData = globalData.filter(worker => {
+                const matchCompany = selectedCompany === "All" || worker.company === selectedCompany;
+                const matchBlock = selectedBlock === "All" || worker.block === selectedBlock;
+                return matchCompany && matchBlock;
+            });
+
+            const overviewCompanies = groupData(filteredData);
+            renderList('overview-dashboard', overviewCompanies, false);
+            drawOverviewChart(filteredData);
+        }
+
+        function drawOverviewChart(data) {
+            const ctx = document.getElementById('overviewChart').getContext('2d');
+            const counts = getCounts(data, 'company');
+            
+            if (overviewChartInstance) overviewChartInstance.destroy();
+            
+            overviewChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(counts),
+                    datasets: [{
+                        label: 'Workers Scheduled',
+                        data: Object.values(counts),
+                        backgroundColor: '#3b82f6',
+                        borderRadius: 4
+                    }]
+                },
+                options: { responsive: true, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+            });
+        }
+
+        // ---------- UTILITIES ----------
+        function groupData(workerArray) {
+            return workerArray.reduce((acc, worker) => {
+                if (!acc[worker.company]) acc[worker.company] = [];
+                acc[worker.company].push(worker);
+                return acc;
+            }, {});
+        }
+
+        function getCounts(array, key) {
+            return array.reduce((acc, item) => {
+                acc[item[key]] = (acc[item[key]] || 0) + 1;
+                return acc;
+            }, {});
         }
 
         function renderList(containerId, companies, showCancelButton) {
             const container = document.getElementById(containerId);
             container.innerHTML = '';
-
+            
             if(Object.keys(companies).length === 0) {
-                container.innerHTML = '<div style="text-align:center; color:#6b7280; font-size: 18px; margin-top: 40px;">✅ No workers scheduled.</div>';
+                container.innerHTML = '<div style="text-align:center; color:#6b7280; padding: 20px;">✅ No workers found for this selection.</div>';
                 return;
             }
 
             for (const companyName in companies) {
                 const groupDiv = document.createElement('div');
                 groupDiv.className = 'company-group';
-                
-                let workersHTML = companies[companyName].map(worker => `
-                    <div class="worker-row" id="row-${worker.rowNumber}">
+                let workersHTML = companies[companyName].map(w => `
+                    <div class="worker-row" id="row-${w.rowNumber}">
                         <div class="worker-info">
-                            <span class="worker-name">👷 ${worker.name}</span>
-                            <span class="worker-meta">📅 Date: ${worker.date} | 📍 ${worker.block}</span>
+                            <span class="worker-name">👷 ${w.name}</span>
+                            <span class="worker-meta">📅 Date: ${w.date} | 📍 ${w.block}</span>
                         </div>
-                        ${showCancelButton ? `<button class="cancel-btn" onclick="cancelWorker(${worker.rowNumber}, this)">Cancel ❌</button>` : ''}
+                        ${showCancelButton ? `<button class="cancel-btn" onclick="cancelWorker(${w.rowNumber}, this)">Cancel ❌</button>` : ''}
                     </div>
                 `).join('');
 
-                groupDiv.innerHTML = `
-                    <div class="company-title">🏢 ${companyName} (${companies[companyName].length} Workers)</div>
-                    <div>${workersHTML}</div>
-                `;
+                groupDiv.innerHTML = `<div class="company-title">🏢 ${companyName} (${companies[companyName].length})</div><div>${workersHTML}</div>`;
                 container.appendChild(groupDiv);
             }
         }
 
-        function renderChart(allData) {
-            const ctx = document.getElementById('companyChart').getContext('2d');
-            
-            // Count workers per company
-            const companyCounts = {};
-            allData.forEach(w => {
-                companyCounts[w.company] = (companyCounts[w.company] || 0) + 1;
-            });
-
-            // Destroy old chart if refreshing data
-            if (chartInstance) chartInstance.destroy();
-
-            // Create new Bar Chart
-            chartInstance = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: Object.keys(companyCounts),
-                    datasets: [{
-                        label: 'Total Active Workers',
-                        data: Object.values(companyCounts),
-                        backgroundColor: '#3b82f6',
-                        borderRadius: 4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
-                }
-            });
-        }
-
         async function cancelWorker(rowNumber, btnElement) {
-            if(!confirm("Are you sure? This instantly updates the Master List.")) return;
+            if(!confirm("Cancel this worker? The Master List and charts will update instantly.")) return;
             
             btnElement.disabled = true;
             btnElement.innerText = "Cancelling...";
@@ -199,9 +260,10 @@
                 
                 const result = await response.json();
                 if(result.success) {
-                    const row = document.getElementById(`row-${rowNumber}`);
-                    row.style.opacity = '0';
-                    setTimeout(() => row.remove(), 300);
+                    // Instantly remove worker from local data and re-render everything!
+                    globalData = globalData.filter(w => w.rowNumber !== rowNumber);
+                    renderTodayView();
+                    renderOverviewView();
                 }
             } catch (error) {
                 alert("Network error.");
@@ -210,7 +272,6 @@
             }
         }
 
-        // Initialize App
         loadData();
     </script>
 </body>
