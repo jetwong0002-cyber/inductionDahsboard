@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Morning Induction Dashboard</title>
+    <style>
+        /* Enterprise-Grade Clean UI */
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f3f4f6; margin: 0; padding: 20px; }
+        .header { text-align: center; margin-bottom: 30px; background: #1f2937; color: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .header h1 { font-size: 24px; margin: 0; letter-spacing: 1px; }
+        .header p { color: #9ca3af; font-size: 14px; margin-top: 5px; }
+        
+        .company-group { background: white; border-radius: 8px; padding: 15px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .company-title { font-size: 18px; color: #374151; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px; margin-bottom: 15px; font-weight: bold; }
+        
+        .worker-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #f3f4f6; transition: opacity 0.3s; }
+        .worker-row:last-child { border-bottom: none; }
+        .worker-info { display: flex; flex-direction: column; }
+        .worker-name { font-weight: bold; color: #111827; font-size: 16px; }
+        .worker-meta { font-size: 13px; color: #6b7280; margin-top: 4px; }
+        
+        .cancel-btn { background-color: #ef4444; color: white; border: none; padding: 10px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: background 0.2s; }
+        .cancel-btn:hover { background-color: #dc2828; }
+        .cancel-btn:disabled { background-color: #fca5a5; cursor: not-allowed; }
+
+        #loading { text-align: center; color: #6b7280; padding: 20px; font-size: 18px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>🏗️ Longmotive Induction</h1>
+        <p>Morning Control Dashboard</p>
+    </div>
+
+    <div id="loading">📡 Fetching Live Data from Database...</div>
+    <div id="dashboard"></div>
+
+    <script>
+        // THIS IS YOUR LIVE DIGITAL BRIDGE!
+        const API_URL = "https://script.google.com/macros/s/AKfycbxq2HLWnl1KgT2sfP07LawSe821tF5y3Px92X4INTTosLwEVkP5hbP38LObcI63mT7iDg/exec";
+
+        async function loadData() {
+            try {
+                // Fetch data from your Google Apps Script
+                const response = await fetch(API_URL);
+                const data = await response.json();
+                
+                // Group the workers automatically by Sub-Contractor Company
+                const companies = {};
+                data.forEach(worker => {
+                    if (!companies[worker.company]) {
+                        companies[worker.company] = [];
+                    }
+                    companies[worker.company].push(worker);
+                });
+
+                renderDashboard(companies);
+            } catch (error) {
+                document.getElementById('loading').innerText = "⚠️ Error loading data. Please refresh.";
+                console.error(error);
+            }
+        }
+
+        function renderDashboard(companies) {
+            const dashboard = document.getElementById('dashboard');
+            document.getElementById('loading').style.display = 'none';
+            dashboard.innerHTML = '';
+
+            if(Object.keys(companies).length === 0) {
+                dashboard.innerHTML = '<div style="text-align:center; color:#6b7280; font-size: 18px; margin-top: 40px;">✅ No active scheduled workers found.</div>';
+                return;
+            }
+
+            for (const companyName in companies) {
+                const groupDiv = document.createElement('div');
+                groupDiv.className = 'company-group';
+                
+                groupDiv.innerHTML = `
+                    <div class="company-title">
+                        🏢 ${companyName}
+                    </div>
+                    <div id="group-${companyName.replace(/\s+/g, '-')}"></div>
+                `;
+                
+                dashboard.appendChild(groupDiv);
+
+                const workerContainer = groupDiv.querySelector('div[id^="group-"]');
+
+                companies[companyName].forEach(worker => {
+                    const rowDiv = document.createElement('div');
+                    rowDiv.className = 'worker-row';
+                    rowDiv.id = `row-${worker.rowNumber}`;
+                    
+                    rowDiv.innerHTML = `
+                        <div class="worker-info">
+                            <span class="worker-name">👷 ${worker.name}</span>
+                            <span class="worker-meta">📅 Date: ${worker.date} | 📍 ${worker.block}</span>
+                        </div>
+                        <button class="cancel-btn" onclick="cancelWorker(${worker.rowNumber}, this)">Cancel ❌</button>
+                    `;
+                    workerContainer.appendChild(rowDiv);
+                });
+            }
+        }
+
+        async function cancelWorker(rowNumber, btnElement) {
+            // Safety confirmation so they don't accidentally click it
+            if(!confirm("Are you sure you want to cancel this worker? This will update the Master List instantly.")) return;
+            
+            // Visual feedback
+            btnElement.disabled = true;
+            btnElement.innerText = "Cancelling...";
+
+            try {
+                // Send the POST request to your Google Apps Script
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({ rowNumber: rowNumber }),
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' } // Crucial for bypassing CORS blocks
+                });
+                
+                const result = await response.json();
+                
+                if(result.success) {
+                    // Smoothly fade out and remove the worker from the screen
+                    const row = document.getElementById(`row-${rowNumber}`);
+                    row.style.opacity = '0';
+                    setTimeout(() => row.remove(), 300);
+                } else {
+                    alert("Failed to cancel on server.");
+                    btnElement.disabled = false;
+                    btnElement.innerText = "Cancel ❌";
+                }
+            } catch (error) {
+                alert("Network error. Could not reach server.");
+                btnElement.disabled = false;
+                btnElement.innerText = "Cancel ❌";
+            }
+        }
+
+        // Initialize App
+        loadData();
+    </script>
+</body>
+</html>
