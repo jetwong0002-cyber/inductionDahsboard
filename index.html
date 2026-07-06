@@ -1,306 +1,1060 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Longmotive Command Center</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        /* Enterprise UI Styling */
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f3f4f6; margin: 0; padding: 20px; }
-        .header { text-align: center; margin-bottom: 20px; background: #1f2937; color: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        .header h1 { font-size: 24px; margin: 0; letter-spacing: 1px; }
-        .header p { color: #9ca3af; font-size: 14px; margin-top: 5px; }
-        
-        /* Tab Navigation */
-        .tab-container { display: flex; justify-content: center; gap: 10px; margin-bottom: 20px; }
-        .tab-btn { background-color: #e5e7eb; border: none; padding: 12px 24px; font-size: 16px; font-weight: bold; color: #4b5563; border-radius: 8px; cursor: pointer; transition: 0.3s; }
-        .tab-btn.active { background-color: #2563eb; color: white; box-shadow: 0 4px 6px rgba(37,99,235,0.3); }
-        .tab-btn:hover:not(.active) { background-color: #d1d5db; }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Longmotive Induction Command Center</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --bg: #eef2f7;
+      --panel: #ffffff;
+      --panel-soft: #f8fafc;
+      --text: #111827;
+      --muted: #64748b;
+      --line: #e2e8f0;
+      --primary: #2563eb;
+      --primary-dark: #1d4ed8;
+      --success: #059669;
+      --warning: #d97706;
+      --danger: #dc2626;
+      --shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+      --radius-lg: 22px;
+      --radius-md: 14px;
+      --radius-sm: 10px;
+    }
 
-        /* View Containers */
-        .view-section { display: none; }
-        .view-section.active { display: block; animation: fadeIn 0.4s ease-in-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    * { box-sizing: border-box; }
 
-        /* KPI Badges */
-        .kpi-container { display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; }
-        .kpi-badge { padding: 12px 20px; border-radius: 8px; font-weight: bold; color: white; display: flex; flex-direction: column; box-shadow: 0 2px 4px rgba(0,0,0,0.1); flex: 1; min-width: 150px; text-align: center; }
-        .kpi-total { background: #10b981; }
-        .kpi-filtered { background: #3b82f6; }
-        .kpi-value { font-size: 24px; margin-top: 5px; }
+    body {
+      margin: 0;
+      font-family: Inter, "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(37, 99, 235, 0.16), transparent 30%),
+        linear-gradient(135deg, #f8fafc 0%, var(--bg) 100%);
+      color: var(--text);
+      min-height: 100vh;
+    }
 
-        /* Cards & Lists */
-        .company-group { background: white; border-radius: 8px; padding: 15px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        .company-title { font-size: 18px; color: #374151; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px; margin-bottom: 15px; font-weight: bold; }
-        
-        .worker-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #f3f4f6; transition: opacity 0.3s; }
-        .worker-row:last-child { border-bottom: none; }
-        .worker-info { display: flex; flex-direction: column; }
-        .worker-name { font-weight: bold; color: #111827; font-size: 16px; }
-        .worker-meta { font-size: 13px; color: #6b7280; margin-top: 4px; }
-        
-        .cancel-btn { background-color: #ef4444; color: white; border: none; padding: 10px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: background 0.2s; }
-        .cancel-btn:hover { background-color: #dc2828; }
-        
-        /* Charts & Filters */
-        .chart-container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        .filter-bar { display: flex; gap: 15px; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid #e5e7eb; flex-wrap: wrap; }
-        .filter-item { display: flex; flex-direction: column; flex: 1; min-width: 140px; }
-        .filter-item label { font-size: 12px; font-weight: bold; color: #6b7280; margin-bottom: 4px; text-transform: uppercase; }
-        .filter-item select, .filter-item input { padding: 8px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; outline: none; }
+    button, input, select {
+      font: inherit;
+    }
 
-        #loading { text-align: center; color: #6b7280; padding: 20px; font-size: 18px; font-weight: bold; }
-    </style>
+    .app-shell {
+      width: min(1280px, calc(100% - 32px));
+      margin: 24px auto;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 18px;
+      align-items: center;
+      background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 55%, #2563eb 100%);
+      color: #fff;
+      padding: 26px;
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      width: 220px;
+      height: 220px;
+      right: -70px;
+      top: -80px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.12);
+    }
+
+    .hero h1 {
+      margin: 0;
+      font-size: clamp(26px, 4vw, 42px);
+      line-height: 1.05;
+      letter-spacing: -0.04em;
+    }
+
+    .hero p {
+      margin: 10px 0 0;
+      color: #bfdbfe;
+      font-size: 15px;
+    }
+
+    .hero-actions {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      z-index: 1;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.14);
+      color: #eff6ff;
+      font-size: 13px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      white-space: nowrap;
+    }
+
+    .status-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: #f59e0b;
+      box-shadow: 0 0 0 5px rgba(245, 158, 11, 0.18);
+    }
+
+    .status-dot.ok { background: #22c55e; box-shadow: 0 0 0 5px rgba(34, 197, 94, 0.18); }
+    .status-dot.error { background: #ef4444; box-shadow: 0 0 0 5px rgba(239, 68, 68, 0.18); }
+
+    .btn {
+      border: 0;
+      cursor: pointer;
+      border-radius: 999px;
+      padding: 10px 14px;
+      font-weight: 700;
+      transition: 0.18s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
+    }
+
+    .btn-primary {
+      background: #fff;
+      color: #1d4ed8;
+    }
+
+    .btn-primary:hover { transform: translateY(-1px); background: #eff6ff; }
+
+    .btn-danger {
+      background: #fee2e2;
+      color: var(--danger);
+      border: 1px solid #fecaca;
+    }
+
+    .btn-danger:hover:not(:disabled) { background: #fecaca; }
+
+    .btn-ghost {
+      background: var(--panel-soft);
+      color: #334155;
+      border: 1px solid var(--line);
+    }
+
+    .btn-ghost:hover { background: #eef2ff; color: var(--primary); }
+
+    .btn:disabled {
+      opacity: 0.65;
+      cursor: not-allowed;
+    }
+
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(160px, 1fr));
+      gap: 14px;
+      margin: 18px 0;
+    }
+
+    .kpi-card {
+      background: rgba(255, 255, 255, 0.84);
+      backdrop-filter: blur(14px);
+      border: 1px solid rgba(226, 232, 240, 0.9);
+      border-radius: var(--radius-md);
+      padding: 18px;
+      box-shadow: 0 10px 28px rgba(15, 23, 42, 0.06);
+    }
+
+    .kpi-label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .kpi-value {
+      margin-top: 8px;
+      font-size: 34px;
+      line-height: 1;
+      letter-spacing: -0.04em;
+      font-weight: 850;
+    }
+
+    .kpi-help {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 10px;
+      background: rgba(255, 255, 255, 0.78);
+      border: 1px solid var(--line);
+      padding: 8px;
+      border-radius: 999px;
+      width: fit-content;
+      box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+      margin-bottom: 18px;
+    }
+
+    .tab-btn {
+      border: 0;
+      background: transparent;
+      color: #475569;
+      padding: 11px 18px;
+      border-radius: 999px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: 0.18s ease;
+    }
+
+    .tab-btn.active {
+      background: var(--primary);
+      color: #fff;
+      box-shadow: 0 10px 20px rgba(37, 99, 235, 0.25);
+    }
+
+    .content-grid {
+      display: grid;
+      grid-template-columns: 390px 1fr;
+      gap: 18px;
+      align-items: start;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .panel-header {
+      padding: 18px 20px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      background: linear-gradient(180deg, #fff 0%, #f8fafc 100%);
+    }
+
+    .panel-title {
+      margin: 0;
+      font-size: 18px;
+      letter-spacing: -0.02em;
+    }
+
+    .panel-subtitle {
+      margin: 5px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .panel-body {
+      padding: 18px 20px 20px;
+    }
+
+    .view-section { display: none; }
+    .view-section.active { display: block; }
+
+    .filter-panel {
+      margin-bottom: 18px;
+    }
+
+    .filters {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(155px, 1fr)) auto;
+      gap: 12px;
+      align-items: end;
+    }
+
+    .field label {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .field input,
+    .field select {
+      width: 100%;
+      border: 1px solid #cbd5e1;
+      border-radius: var(--radius-sm);
+      padding: 11px 12px;
+      outline: none;
+      background: #fff;
+      color: var(--text);
+      transition: 0.16s ease;
+    }
+
+    .field input:focus,
+    .field select:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+    }
+
+    .list-stack {
+      display: grid;
+      gap: 12px;
+    }
+
+    .company-card {
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      background: #fff;
+      overflow: hidden;
+    }
+
+    .company-heading {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 14px 16px;
+      background: #f8fafc;
+      border-bottom: 1px solid var(--line);
+      font-weight: 850;
+    }
+
+    .count-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 30px;
+      padding: 4px 9px;
+      border-radius: 999px;
+      background: #dbeafe;
+      color: #1d4ed8;
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .worker-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 14px;
+      align-items: center;
+      padding: 14px 16px;
+      border-bottom: 1px solid #f1f5f9;
+    }
+
+    .worker-row:last-child { border-bottom: 0; }
+
+    .worker-name {
+      font-weight: 850;
+      color: #0f172a;
+    }
+
+    .worker-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 7px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: #f1f5f9;
+      color: #475569;
+    }
+
+    .empty-state, .error-state, .loading-state {
+      text-align: center;
+      padding: 34px 18px;
+      color: var(--muted);
+      background: #fff;
+      border: 1px dashed #cbd5e1;
+      border-radius: var(--radius-md);
+    }
+
+    .error-state {
+      color: #991b1b;
+      background: #fef2f2;
+      border-color: #fecaca;
+    }
+
+    .chart-note {
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 13px;
+      text-align: center;
+    }
+
+    .table-wrap {
+      width: 100%;
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 650px;
+    }
+
+    th, td {
+      text-align: left;
+      padding: 13px 12px;
+      border-bottom: 1px solid #eef2f7;
+      font-size: 14px;
+    }
+
+    th {
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      background: #f8fafc;
+    }
+
+    .toast {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      max-width: 360px;
+      background: #0f172a;
+      color: #fff;
+      padding: 14px 16px;
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+      transform: translateY(20px);
+      opacity: 0;
+      pointer-events: none;
+      transition: 0.2s ease;
+      z-index: 100;
+    }
+
+    .toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    @media (max-width: 980px) {
+      .hero, .content-grid { grid-template-columns: 1fr; }
+      .hero-actions { justify-content: flex-start; flex-wrap: wrap; }
+      .kpi-grid { grid-template-columns: repeat(2, minmax(160px, 1fr)); }
+      .filters { grid-template-columns: repeat(2, minmax(155px, 1fr)); }
+      .tabs { width: 100%; }
+      .tab-btn { flex: 1; }
+    }
+
+    @media (max-width: 560px) {
+      .app-shell { width: min(100% - 20px, 1280px); margin: 10px auto; }
+      .hero { padding: 20px; border-radius: 18px; }
+      .kpi-grid, .filters { grid-template-columns: 1fr; }
+      .worker-row { grid-template-columns: 1fr; }
+      .btn { justify-content: center; width: 100%; }
+      .tabs { border-radius: 18px; flex-direction: column; }
+    }
+  </style>
 </head>
 <body>
+  <main class="app-shell">
+    <section class="hero">
+      <div>
+        <h1>Longmotive Induction</h1>
+        <p>Command center for today’s workers, upcoming schedules, and cancellation control.</p>
+      </div>
+      <div class="hero-actions">
+        <div class="status-pill"><span id="status-dot" class="status-dot"></span><span id="status-text">Connecting...</span></div>
+        <button class="btn btn-primary" id="refresh-btn" type="button">↻ Refresh</button>
+      </div>
+    </section>
 
-    <div class="header">
-        <h1>🏗️ Longmotive Induction</h1>
-        <p>Command Center & Analytics</p>
-    </div>
+    <section class="kpi-grid" aria-label="Dashboard summary">
+      <article class="kpi-card">
+        <div class="kpi-label">Today</div>
+        <div class="kpi-value" id="kpi-today">0</div>
+        <div class="kpi-help">Scheduled for current date</div>
+      </article>
+      <article class="kpi-card">
+        <div class="kpi-label">Next 7 Days</div>
+        <div class="kpi-value" id="kpi-week">0</div>
+        <div class="kpi-help">Including today</div>
+      </article>
+      <article class="kpi-card">
+        <div class="kpi-label">Companies</div>
+        <div class="kpi-value" id="kpi-companies">0</div>
+        <div class="kpi-help">Unique companies loaded</div>
+      </article>
+      <article class="kpi-card">
+        <div class="kpi-label">Showing</div>
+        <div class="kpi-value" id="kpi-showing">0</div>
+        <div class="kpi-help">After filters/search</div>
+      </article>
+    </section>
 
-    <div class="tab-container">
-        <button class="tab-btn active" onclick="switchTab('today-view', this)">📅 Today's Induction</button>
-        <button class="tab-btn" onclick="switchTab('overview-view', this)">📊 Overview & Charts</button>
-    </div>
+    <nav class="tabs" aria-label="Dashboard tabs">
+      <button class="tab-btn active" type="button" data-view="today-view">📅 Today</button>
+      <button class="tab-btn" type="button" data-view="overview-view">📊 Overview</button>
+    </nav>
 
-    <div id="loading">📡 Fetching Live Data from Database...</div>
-
-    <div id="today-view" class="view-section active">
-        <div class="chart-container" style="max-width: 400px; margin: 0 auto 20px auto;">
-            <h2 style="margin-top: 0; color: #374151; text-align: center; font-size: 18px;">Today's Headcount</h2>
-            <canvas id="todayChart"></canvas>
-        </div>
-        <div id="today-dashboard"></div>
-    </div>
-
-    <div id="overview-view" class="view-section">
-        
-        <div class="kpi-container">
-            <div class="kpi-badge kpi-total">
-                <span>Grand Total (All Scheduled)</span>
-                <span class="kpi-value" id="kpi-grand-total">0</span>
+    <section id="today-view" class="view-section active">
+      <div class="content-grid">
+        <aside class="panel">
+          <div class="panel-header">
+            <div>
+              <h2 class="panel-title">Today’s Headcount</h2>
+              <p class="panel-subtitle">Grouped by company</p>
             </div>
-            <div class="kpi-badge kpi-filtered">
-                <span>Showing in View</span>
-                <span class="kpi-value" id="kpi-filtered-total">0</span>
+          </div>
+          <div class="panel-body">
+            <canvas id="todayChart" height="240"></canvas>
+            <div id="today-chart-note" class="chart-note"></div>
+          </div>
+        </aside>
+
+        <section class="panel">
+          <div class="panel-header">
+            <div>
+              <h2 class="panel-title">Today’s Workers</h2>
+              <p class="panel-subtitle">Cancel button is only shown when row number exists</p>
             </div>
-        </div>
+          </div>
+          <div class="panel-body">
+            <div id="today-dashboard" class="list-stack"><div class="loading-state">Loading workers...</div></div>
+          </div>
+        </section>
+      </div>
+    </section>
 
-        <div class="chart-container">
-            <h2 style="margin-top: 0; color: #374151;">Worker Analytics</h2>
-            
-            <div class="filter-bar">
-                <div class="filter-item">
-                    <label>Filter by Date</label>
-                    <input type="date" id="filter-date" onchange="renderOverviewView()">
-                </div>
-                <div class="filter-item">
-                    <label>Filter by Company</label>
-                    <select id="filter-company" onchange="renderOverviewView()"><option value="All">All Companies</option></select>
-                </div>
-                <div class="filter-item">
-                    <label>Filter by Block</label>
-                    <select id="filter-block" onchange="renderOverviewView()"><option value="All">All Blocks</option></select>
-                </div>
+    <section id="overview-view" class="view-section">
+      <section class="panel filter-panel">
+        <div class="panel-header">
+          <div>
+            <h2 class="panel-title">Filters</h2>
+            <p class="panel-subtitle">Leave date empty to show the next 7 days.</p>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div class="filters">
+            <div class="field">
+              <label for="filter-search">Search name</label>
+              <input id="filter-search" type="search" placeholder="e.g. Ali, Kumar" />
             </div>
-
-            <canvas id="overviewChart"></canvas>
+            <div class="field">
+              <label for="filter-date">Date</label>
+              <input id="filter-date" type="date" />
+            </div>
+            <div class="field">
+              <label for="filter-company">Company</label>
+              <select id="filter-company"><option value="All">All Companies</option></select>
+            </div>
+            <div class="field">
+              <label for="filter-block">Block</label>
+              <select id="filter-block"><option value="All">All Blocks</option></select>
+            </div>
+            <button class="btn btn-ghost" id="clear-filters-btn" type="button">Clear</button>
+          </div>
         </div>
-        <div id="overview-dashboard"></div>
-    </div>
+      </section>
 
-    <script>
-        const API_URL = "https://script.google.com/macros/s/AKfycbxq2HLWnl1KgT2sfP07LawSe821tF5y3Px92X4INTTosLwEVkP5hbP38LObcI63mT7iDg/exec";
-        
-        let globalData = [];
-        let todayChartInstance = null;
-        let overviewChartInstance = null;
-        const chartColors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#f97316'];
+      <div class="content-grid">
+        <aside class="panel">
+          <div class="panel-header">
+            <div>
+              <h2 class="panel-title">Worker Analytics</h2>
+              <p class="panel-subtitle">Current filtered view</p>
+            </div>
+          </div>
+          <div class="panel-body">
+            <canvas id="overviewChart" height="260"></canvas>
+            <div id="overview-chart-note" class="chart-note"></div>
+          </div>
+        </aside>
 
-        // --- Date Helper Functions ---
-        function isToday(dateStr) {
-            const today = new Date();
-            const d = new Date(dateStr);
-            return d.setHours(0,0,0,0) === today.setHours(0,0,0,0);
+        <section class="panel">
+          <div class="panel-header">
+            <div>
+              <h2 class="panel-title">Overview List</h2>
+              <p class="panel-subtitle">Detailed worker table</p>
+            </div>
+          </div>
+          <div class="panel-body">
+            <div id="overview-dashboard"><div class="loading-state">Loading overview...</div></div>
+          </div>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    const API_URL = "https://script.google.com/macros/s/AKfycbxq2HLWnl1KgT2sfP07LawSe821tF5y3Px92X4INTTosLwEVkP5hbP38LObcI63mT7iDg/exec";
+
+    let globalData = [];
+    let todayChartInstance = null;
+    let overviewChartInstance = null;
+
+    const chartColors = [
+      '#2563eb', '#059669', '#d97706', '#dc2626', '#7c3aed', '#0891b2',
+      '#ea580c', '#16a34a', '#9333ea', '#0f766e', '#be123c', '#4f46e5'
+    ];
+
+    const els = {
+      statusDot: document.getElementById('status-dot'),
+      statusText: document.getElementById('status-text'),
+      refreshBtn: document.getElementById('refresh-btn'),
+      todayDashboard: document.getElementById('today-dashboard'),
+      overviewDashboard: document.getElementById('overview-dashboard'),
+      filterSearch: document.getElementById('filter-search'),
+      filterDate: document.getElementById('filter-date'),
+      filterCompany: document.getElementById('filter-company'),
+      filterBlock: document.getElementById('filter-block'),
+      clearFiltersBtn: document.getElementById('clear-filters-btn'),
+      kpiToday: document.getElementById('kpi-today'),
+      kpiWeek: document.getElementById('kpi-week'),
+      kpiCompanies: document.getElementById('kpi-companies'),
+      kpiShowing: document.getElementById('kpi-showing'),
+      todayChartNote: document.getElementById('today-chart-note'),
+      overviewChartNote: document.getElementById('overview-chart-note'),
+      toast: document.getElementById('toast')
+    };
+
+    function setStatus(type, text) {
+      els.statusDot.className = `status-dot ${type === 'ok' ? 'ok' : type === 'error' ? 'error' : ''}`;
+      els.statusText.textContent = text;
+    }
+
+    function showToast(message) {
+      els.toast.textContent = message;
+      els.toast.classList.add('show');
+      window.clearTimeout(showToast._timer);
+      showToast._timer = window.setTimeout(() => els.toast.classList.remove('show'), 3200);
+    }
+
+    function pad2(n) {
+      return String(n).padStart(2, '0');
+    }
+
+    function dateToYmd(date) {
+      return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+    }
+
+    function ymdToLocalDate(ymd) {
+      const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd);
+      if (!match) return null;
+      return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+    }
+
+    function parseDateToYmd(value) {
+      if (value === null || value === undefined || value === '') return null;
+
+      // Handles Google Sheet serial dates if Apps Script accidentally sends numbers.
+      if (typeof value === 'number' && Number.isFinite(value)) {
+        const date = new Date(Math.round((value - 25569) * 86400 * 1000));
+        return Number.isNaN(date.getTime()) ? null : dateToYmd(date);
+      }
+
+      const str = String(value).trim();
+
+      // Best format from backend: YYYY-MM-DD or ISO string starting with YYYY-MM-DD.
+      const iso = /^(\d{4})-(\d{2})-(\d{2})/.exec(str);
+      if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+
+      // Malaysia-friendly fallback: DD/MM/YYYY or DD-MM-YYYY.
+      const slash = /^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/.exec(str);
+      if (slash) {
+        let first = Number(slash[1]);
+        let second = Number(slash[2]);
+        const year = Number(slash[3]);
+
+        // If second > 12, it is definitely MM/DD/YYYY. Otherwise default to DD/MM/YYYY.
+        const day = second > 12 ? second : first;
+        const month = second > 12 ? first : second;
+        if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+          return `${year}-${pad2(month)}-${pad2(day)}`;
+        }
+      }
+
+      // Last fallback. Avoid relying on this where possible because browser parsing differs.
+      const date = new Date(str);
+      return Number.isNaN(date.getTime()) ? null : dateToYmd(date);
+    }
+
+    function formatDate(value) {
+      const ymd = parseDateToYmd(value);
+      if (!ymd) return 'No date';
+      const date = ymdToLocalDate(ymd);
+      return date ? date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: '2-digit' }) : ymd;
+    }
+
+    function isToday(dateValue) {
+      return parseDateToYmd(dateValue) === dateToYmd(new Date());
+    }
+
+    function isWithinNext7Days(dateValue) {
+      const ymd = parseDateToYmd(dateValue);
+      if (!ymd) return false;
+      const today = ymdToLocalDate(dateToYmd(new Date()));
+      const target = ymdToLocalDate(ymd);
+      if (!today || !target) return false;
+      const diffDays = Math.round((target - today) / 86400000);
+      return diffDays >= 0 && diffDays <= 6;
+    }
+
+    function normalizeText(value, fallback = 'Unknown') {
+      const text = value === null || value === undefined ? '' : String(value).trim();
+      return text || fallback;
+    }
+
+    function normalizeWorker(raw, index) {
+      return {
+        name: normalizeText(raw.name || raw.workerName || raw.worker || raw.Name, 'Unnamed worker'),
+        company: normalizeText(raw.company || raw.Company, 'Unknown company'),
+        block: normalizeText(raw.block || raw.Block, 'No block'),
+        date: raw.date || raw.Date || raw.inductionDate || raw['Induction Date'] || '',
+        dateYmd: parseDateToYmd(raw.date || raw.Date || raw.inductionDate || raw['Induction Date'] || ''),
+        rowNumber: raw.rowNumber ?? raw.row ?? raw.Row ?? '',
+        originalIndex: index
+      };
+    }
+
+    function normalizeApiPayload(payload) {
+      const rows = Array.isArray(payload) ? payload : Array.isArray(payload?.data) ? payload.data : null;
+      if (!rows) throw new Error('API did not return an array. Check Apps Script JSON output.');
+      return rows.map(normalizeWorker);
+    }
+
+    function getUniqueValues(data, key) {
+      return [...new Set(data.map(item => item[key]).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+    }
+
+    function fillSelect(select, defaultLabel, values) {
+      const current = select.value || 'All';
+      select.textContent = '';
+      select.add(new Option(defaultLabel, 'All'));
+      values.forEach(value => select.add(new Option(value, value)));
+      select.value = values.includes(current) ? current : 'All';
+    }
+
+    function populateFilters() {
+      fillSelect(els.filterCompany, 'All Companies', getUniqueValues(globalData, 'company'));
+      fillSelect(els.filterBlock, 'All Blocks', getUniqueValues(globalData, 'block'));
+    }
+
+    function getCounts(array, key) {
+      return array.reduce((acc, item) => {
+        const label = item[key] || 'Unknown';
+        acc[label] = (acc[label] || 0) + 1;
+        return acc;
+      }, {});
+    }
+
+    function groupData(workerArray) {
+      return workerArray.reduce((acc, worker) => {
+        if (!acc[worker.company]) acc[worker.company] = [];
+        acc[worker.company].push(worker);
+        return acc;
+      }, {});
+    }
+
+    function getFilteredOverviewData() {
+      const selectedCompany = els.filterCompany.value;
+      const selectedBlock = els.filterBlock.value;
+      const selectedDate = els.filterDate.value;
+      const search = els.filterSearch.value.trim().toLowerCase();
+
+      return globalData.filter(worker => {
+        const matchCompany = selectedCompany === 'All' || worker.company === selectedCompany;
+        const matchBlock = selectedBlock === 'All' || worker.block === selectedBlock;
+        const matchSearch = !search || worker.name.toLowerCase().includes(search);
+        const matchDate = selectedDate ? worker.dateYmd === selectedDate : isWithinNext7Days(worker.date);
+        return matchCompany && matchBlock && matchSearch && matchDate;
+      });
+    }
+
+    function updateKpis(filteredData) {
+      els.kpiToday.textContent = globalData.filter(w => isToday(w.date)).length;
+      els.kpiWeek.textContent = globalData.filter(w => isWithinNext7Days(w.date)).length;
+      els.kpiCompanies.textContent = getUniqueValues(globalData, 'company').length;
+      els.kpiShowing.textContent = filteredData.length;
+    }
+
+    function renderList(container, workers, options = {}) {
+      container.textContent = '';
+
+      if (!workers.length) {
+        const empty = document.createElement('div');
+        empty.className = 'empty-state';
+        empty.textContent = options.emptyText || 'No workers found for this selection.';
+        container.appendChild(empty);
+        return;
+      }
+
+      const groups = groupData(workers);
+      Object.entries(groups).forEach(([companyName, companyWorkers]) => {
+        const card = document.createElement('article');
+        card.className = 'company-card';
+
+        const heading = document.createElement('div');
+        heading.className = 'company-heading';
+        heading.innerHTML = `<span>🏢 </span>`;
+        heading.firstElementChild.append(document.createTextNode(companyName));
+
+        const count = document.createElement('span');
+        count.className = 'count-badge';
+        count.textContent = companyWorkers.length;
+        heading.appendChild(count);
+        card.appendChild(heading);
+
+        companyWorkers.forEach(worker => {
+          const row = document.createElement('div');
+          row.className = 'worker-row';
+
+          const info = document.createElement('div');
+          const name = document.createElement('div');
+          name.className = 'worker-name';
+          name.textContent = `👷 ${worker.name}`;
+
+          const meta = document.createElement('div');
+          meta.className = 'worker-meta';
+          const dateTag = document.createElement('span');
+          dateTag.className = 'tag';
+          dateTag.textContent = `📅 ${formatDate(worker.date)}`;
+          const blockTag = document.createElement('span');
+          blockTag.className = 'tag';
+          blockTag.textContent = `📍 ${worker.block}`;
+          meta.append(dateTag, blockTag);
+
+          info.append(name, meta);
+          row.appendChild(info);
+
+          if (options.showCancel && worker.rowNumber !== '') {
+            const btn = document.createElement('button');
+            btn.className = 'btn btn-danger cancel-worker-btn';
+            btn.type = 'button';
+            btn.dataset.rowNumber = String(worker.rowNumber);
+            btn.dataset.workerName = worker.name;
+            btn.textContent = 'Cancel';
+            row.appendChild(btn);
+          }
+
+          card.appendChild(row);
+        });
+
+        container.appendChild(card);
+      });
+    }
+
+    function renderTable(container, workers) {
+      container.textContent = '';
+
+      if (!workers.length) {
+        const empty = document.createElement('div');
+        empty.className = 'empty-state';
+        empty.textContent = 'No workers match your filters.';
+        container.appendChild(empty);
+        return;
+      }
+
+      const wrap = document.createElement('div');
+      wrap.className = 'table-wrap';
+      const table = document.createElement('table');
+      table.innerHTML = '<thead><tr><th>Name</th><th>Company</th><th>Block</th><th>Date</th><th>Row</th></tr></thead>';
+      const tbody = document.createElement('tbody');
+
+      workers.forEach(worker => {
+        const tr = document.createElement('tr');
+        [worker.name, worker.company, worker.block, formatDate(worker.date), worker.rowNumber || '-'].forEach(value => {
+          const td = document.createElement('td');
+          td.textContent = value;
+          tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+      });
+
+      table.appendChild(tbody);
+      wrap.appendChild(table);
+      container.appendChild(wrap);
+    }
+
+    function drawChart(canvasId, noteEl, chartType, data, label) {
+      const canvas = document.getElementById(canvasId);
+      const counts = getCounts(data, 'company');
+      const labels = Object.keys(counts);
+      const values = Object.values(counts);
+
+      if (canvasId === 'todayChart' && todayChartInstance) todayChartInstance.destroy();
+      if (canvasId === 'overviewChart' && overviewChartInstance) overviewChartInstance.destroy();
+
+      if (!window.Chart) {
+        noteEl.textContent = 'Chart library failed to load. Lists are still available.';
+        return null;
+      }
+
+      if (!labels.length) {
+        noteEl.textContent = 'No chart data for this view.';
+        return null;
+      }
+
+      noteEl.textContent = '';
+      const ctx = canvas.getContext('2d');
+      const chart = new Chart(ctx, {
+        type: chartType,
+        data: {
+          labels,
+          datasets: [{
+            label,
+            data: values,
+            backgroundColor: labels.map((_, i) => chartColors[i % chartColors.length]),
+            borderRadius: chartType === 'bar' ? 8 : 0,
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: 'bottom' } },
+          scales: chartType === 'bar' ? { y: { beginAtZero: true, ticks: { precision: 0 } } } : undefined
+        }
+      });
+
+      if (canvasId === 'todayChart') todayChartInstance = chart;
+      if (canvasId === 'overviewChart') overviewChartInstance = chart;
+      return chart;
+    }
+
+    function renderTodayView() {
+      const todayData = globalData.filter(worker => isToday(worker.date));
+      renderList(els.todayDashboard, todayData, {
+        showCancel: true,
+        emptyText: 'No workers scheduled for today.'
+      });
+      drawChart('todayChart', els.todayChartNote, 'doughnut', todayData, 'Today workers');
+    }
+
+    function renderOverviewView() {
+      const filteredData = getFilteredOverviewData();
+      updateKpis(filteredData);
+      renderTable(els.overviewDashboard, filteredData);
+      drawChart('overviewChart', els.overviewChartNote, 'bar', filteredData, 'Scheduled Workers');
+    }
+
+    function renderAll() {
+      const filteredData = getFilteredOverviewData();
+      updateKpis(filteredData);
+      renderTodayView();
+      renderOverviewView();
+    }
+
+    async function loadData() {
+      setStatus('loading', 'Loading data...');
+      els.refreshBtn.disabled = true;
+      els.todayDashboard.innerHTML = '<div class="loading-state">Loading workers...</div>';
+      els.overviewDashboard.innerHTML = '<div class="loading-state">Loading overview...</div>';
+
+      try {
+        const response = await fetch(API_URL, { cache: 'no-store' });
+        if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        const payload = await response.json();
+
+        globalData = normalizeApiPayload(payload);
+        populateFilters();
+        renderAll();
+        setStatus('ok', `Loaded ${globalData.length} records`);
+      } catch (error) {
+        console.error(error);
+        setStatus('error', 'Load failed');
+        const message = `Could not load data: ${error.message}`;
+        els.todayDashboard.innerHTML = `<div class="error-state"></div>`;
+        els.todayDashboard.firstElementChild.textContent = message;
+        els.overviewDashboard.innerHTML = `<div class="error-state"></div>`;
+        els.overviewDashboard.firstElementChild.textContent = message;
+        showToast('Data load failed. Check Apps Script deployment, CORS, or JSON format.');
+      } finally {
+        els.refreshBtn.disabled = false;
+      }
+    }
+
+    async function cancelWorker(rowNumber, btnElement) {
+      const workerName = btnElement.dataset.workerName || 'this worker';
+      const confirmed = window.confirm(`Cancel ${workerName}? This will update the master list if the backend succeeds.`);
+      if (!confirmed) return;
+
+      const originalText = btnElement.textContent;
+      btnElement.disabled = true;
+      btnElement.textContent = 'Cancelling...';
+
+      try {
+        const response = await fetch(API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ rowNumber })
+        });
+
+        if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        const result = await response.json();
+
+        if (result.success !== true) {
+          throw new Error(result.message || 'Backend did not confirm success.');
         }
 
-        function isWithinNext7Days(dateStr) {
-            const today = new Date();
-            today.setHours(0,0,0,0);
-            const target = new Date(dateStr);
-            target.setHours(0,0,0,0);
-            
-            const diffTime = target - today;
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-            // Show today + next 6 days (1 week window)
-            return diffDays >= 0 && diffDays <= 6;
-        }
+        globalData = globalData.filter(worker => String(worker.rowNumber) !== String(rowNumber));
+        renderAll();
+        showToast(`${workerName} cancelled.`);
+      } catch (error) {
+        console.error(error);
+        btnElement.disabled = false;
+        btnElement.textContent = originalText;
+        showToast(`Cancel failed: ${error.message}`);
+      }
+    }
 
-        function isExactDate(dateStr, filterDateStr) {
-            if(!filterDateStr) return false;
-            const target = new Date(dateStr);
-            // Convert sheet date to YYYY-MM-DD for comparison
-            const targetFormat = target.getFullYear() + "-" + 
-                                String(target.getMonth() + 1).padStart(2, '0') + "-" + 
-                                String(target.getDate()).padStart(2, '0');
-            return targetFormat === filterDateStr;
-        }
+    document.querySelectorAll('.tab-btn').forEach(button => {
+      button.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+        document.querySelectorAll('.view-section').forEach(section => section.classList.remove('active'));
+        button.classList.add('active');
+        document.getElementById(button.dataset.view).classList.add('active');
 
-        function switchTab(viewId, btnElement) {
-            document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
-            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-            document.getElementById(viewId).classList.add('active');
-            btnElement.classList.add('active');
-        }
+        // Charts rendered while hidden can have wrong sizing. Resize after tab is visible.
+        requestAnimationFrame(() => {
+          todayChartInstance?.resize();
+          overviewChartInstance?.resize();
+        });
+      });
+    });
 
-        async function loadData() {
-            try {
-                const response = await fetch(API_URL);
-                globalData = await response.json();
-                
-                populateFilters();
-                renderTodayView();
-                renderOverviewView();
-                
-                document.getElementById('loading').style.display = 'none';
-            } catch (error) {
-                document.getElementById('loading').innerText = "⚠️ Error loading data. Please refresh.";
-            }
-        }
+    [els.filterSearch, els.filterDate, els.filterCompany, els.filterBlock].forEach(input => {
+      input.addEventListener('input', renderOverviewView);
+      input.addEventListener('change', renderOverviewView);
+    });
 
-        function populateFilters() {
-            const companies = [...new Set(globalData.map(w => w.company))].sort();
-            const blocks = [...new Set(globalData.map(w => w.block))].sort();
-            
-            const companySelect = document.getElementById('filter-company');
-            const blockSelect = document.getElementById('filter-block');
-            
-            // Clear existing to avoid duplicates on reload
-            companySelect.innerHTML = '<option value="All">All Companies</option>';
-            blockSelect.innerHTML = '<option value="All">All Blocks</option>';
+    els.clearFiltersBtn.addEventListener('click', () => {
+      els.filterSearch.value = '';
+      els.filterDate.value = '';
+      els.filterCompany.value = 'All';
+      els.filterBlock.value = 'All';
+      renderOverviewView();
+    });
 
-            companies.forEach(c => companySelect.add(new Option(c, c)));
-            blocks.forEach(b => blockSelect.add(new Option(b, b)));
-        }
+    els.refreshBtn.addEventListener('click', loadData);
 
-        function renderTodayView() {
-            const todayData = globalData.filter(worker => isToday(worker.date));
-            renderList('today-dashboard', groupData(todayData), true);
-            drawTodayChart(todayData);
-        }
+    document.addEventListener('click', event => {
+      const btn = event.target.closest('.cancel-worker-btn');
+      if (!btn) return;
+      cancelWorker(btn.dataset.rowNumber, btn);
+    });
 
-        function renderOverviewView() {
-            const selectedCompany = document.getElementById('filter-company').value;
-            const selectedBlock = document.getElementById('filter-block').value;
-            const selectedDate = document.getElementById('filter-date').value;
-            
-            // Update Grand Total KPI
-            document.getElementById('kpi-grand-total').innerText = globalData.length;
-
-            let filteredData = globalData.filter(worker => {
-                const matchCompany = selectedCompany === "All" || worker.company === selectedCompany;
-                const matchBlock = selectedBlock === "All" || worker.block === selectedBlock;
-                
-                // DATE LOGIC: If date selected, exact match. If empty, show next 7 days.
-                const matchDate = selectedDate ? isExactDate(worker.date, selectedDate) : isWithinNext7Days(worker.date);
-
-                return matchCompany && matchBlock && matchDate;
-            });
-
-            // Update Filtered Total KPI
-            document.getElementById('kpi-filtered-total').innerText = filteredData.length;
-
-            renderList('overview-dashboard', groupData(filteredData), false);
-            drawOverviewChart(filteredData);
-        }
-
-        function drawTodayChart(data) {
-            const ctx = document.getElementById('todayChart').getContext('2d');
-            const counts = getCounts(data, 'company');
-            if (todayChartInstance) todayChartInstance.destroy();
-            todayChartInstance = new Chart(ctx, {
-                type: 'doughnut',
-                data: { labels: Object.keys(counts), datasets: [{ data: Object.values(counts), backgroundColor: chartColors }] },
-                options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
-            });
-        }
-
-        function drawOverviewChart(data) {
-            const ctx = document.getElementById('overviewChart').getContext('2d');
-            const counts = getCounts(data, 'company');
-            if (overviewChartInstance) overviewChartInstance.destroy();
-            overviewChartInstance = new Chart(ctx, {
-                type: 'bar',
-                data: { labels: Object.keys(counts), datasets: [{ label: 'Scheduled Workers', data: Object.values(counts), backgroundColor: '#3b82f6', borderRadius: 4 }] },
-                options: { responsive: true, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
-            });
-        }
-
-        function groupData(workerArray) {
-            return workerArray.reduce((acc, worker) => {
-                if (!acc[worker.company]) acc[worker.company] = [];
-                acc[worker.company].push(worker);
-                return acc;
-            }, {});
-        }
-
-        function getCounts(array, key) {
-            return array.reduce((acc, item) => {
-                acc[item[key]] = (acc[item[key]] || 0) + 1;
-                return acc;
-            }, {});
-        }
-
-        function renderList(containerId, companies, showCancelButton) {
-            const container = document.getElementById(containerId);
-            container.innerHTML = '';
-            if(Object.keys(companies).length === 0) {
-                container.innerHTML = '<div style="text-align:center; color:#6b7280; padding: 20px;">✅ No workers found for this selection.</div>';
-                return;
-            }
-            for (const companyName in companies) {
-                const groupDiv = document.createElement('div');
-                groupDiv.className = 'company-group';
-                let workersHTML = companies[companyName].map(w => `
-                    <div class="worker-row" id="row-${w.rowNumber}">
-                        <div class="worker-info">
-                            <span class="worker-name">👷 ${w.name}</span>
-                            <span class="worker-meta">📅 Date: ${w.date} | 📍 ${w.block}</span>
-                        </div>
-                        ${showCancelButton ? `<button class="cancel-btn" onclick="cancelWorker(${w.rowNumber}, this)">Cancel ❌</button>` : ''}
-                    </div>
-                `).join('');
-                groupDiv.innerHTML = `<div class="company-title">🏢 ${companyName} (${companies[companyName].length})</div><div>${workersHTML}</div>`;
-                container.appendChild(groupDiv);
-            }
-        }
-
-        async function cancelWorker(rowNumber, btnElement) {
-            if(!confirm("Cancel this worker? The Master List and charts will update instantly.")) return;
-            btnElement.disabled = true;
-            btnElement.innerText = "Cancelling...";
-            try {
-                const response = await fetch(API_URL, {
-                    method: 'POST',
-                    body: JSON.stringify({ rowNumber: rowNumber }),
-                    headers: { 'Content-Type': 'text/plain;charset=utf-8' }
-                });
-                const result = await response.json();
-                if(result.success) {
-                    globalData = globalData.filter(w => w.rowNumber !== rowNumber);
-                    renderTodayView();
-                    renderOverviewView();
-                }
-            } catch (error) {
-                alert("Network error.");
-                btnElement.disabled = false;
-                btnElement.innerText = "Cancel ❌";
-            }
-        }
-
-        loadData();
-    </script>
+    loadData();
+  </script>
 </body>
 </html>
