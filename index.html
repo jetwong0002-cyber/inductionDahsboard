@@ -682,16 +682,22 @@
       const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(str);
       if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
 
-      // Malaysia-friendly fallback: DD/MM/YYYY or DD-MM-YYYY.
+      // Slash-separated date, e.g. "7/6/2026". CONFIRMED from live API output that this
+      // backend always sends US-style M/D/YYYY (matches what new Date() assumes natively,
+      // which is why the original un-modified code always got this right). Do NOT try to
+      // "smart guess" DD/MM here - guessing based on which number is >12 silently breaks
+      // any date where the day is also <=12 (e.g. "7/6/2026" was mis-read as 6/7 = June 7
+      // instead of July 6). Only swap to day-first if the first number can't be a month.
       const slash = /^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/.exec(str);
       if (slash) {
         let first = Number(slash[1]);
         let second = Number(slash[2]);
         const year = Number(slash[3]);
 
-        // If second > 12, it is definitely MM/DD/YYYY. Otherwise default to DD/MM/YYYY.
-        const day = second > 12 ? second : first;
-        const month = second > 12 ? first : second;
+        // Default: first = month, second = day (US format, matches this data source).
+        // Only swap if first > 12, meaning it can't possibly be a month.
+        const month = first > 12 ? second : first;
+        const day = first > 12 ? first : second;
         if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
           return `${year}-${pad2(month)}-${pad2(day)}`;
         }
