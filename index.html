@@ -390,6 +390,12 @@
       border-color: #fecaca;
     }
 
+    .chart-canvas-wrap {
+      position: relative;
+      width: 100%;
+      height: 280px;
+    }
+
     .chart-note {
       margin-top: 10px;
       color: var(--muted);
@@ -515,7 +521,9 @@
             </div>
           </div>
           <div class="panel-body">
-            <canvas id="todayChart" height="240"></canvas>
+            <div class="chart-canvas-wrap">
+              <canvas id="todayChart"></canvas>
+            </div>
             <div id="today-chart-note" class="chart-note"></div>
           </div>
         </aside>
@@ -574,7 +582,9 @@
             </div>
           </div>
           <div class="panel-body">
-            <canvas id="overviewChart" height="260"></canvas>
+            <div class="chart-canvas-wrap">
+              <canvas id="overviewChart"></canvas>
+            </div>
             <div id="overview-chart-note" class="chart-note"></div>
           </div>
         </aside>
