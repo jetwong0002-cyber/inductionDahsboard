@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Longmotive Induction Command Center</title>
+  <title>Longmotive Induction Command Center - Fixed All Records</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     :root {
@@ -496,16 +496,16 @@
       <article class="kpi-card">
         <div class="kpi-label">Showing</div>
         <div class="kpi-value" id="kpi-showing">0</div>
-        <div class="kpi-help">After filters/search</div>
+        <div class="kpi-help">All records unless filtered</div>
       </article>
     </section>
 
     <nav class="tabs" aria-label="Dashboard tabs">
-      <button class="tab-btn active" type="button" data-view="today-view">📅 Today</button>
-      <button class="tab-btn" type="button" data-view="overview-view">📊 Overview</button>
+      <button class="tab-btn active" type="button" data-view="overview-view">📋 All Records</button>
+      <button class="tab-btn" type="button" data-view="today-view">📅 Today</button>
     </nav>
 
-    <section id="today-view" class="view-section active">
+    <section id="today-view" class="view-section">
       <div class="content-grid">
         <aside class="panel">
           <div class="panel-header">
@@ -534,12 +534,12 @@
       </div>
     </section>
 
-    <section id="overview-view" class="view-section">
+    <section id="overview-view" class="view-section active">
       <section class="panel filter-panel">
         <div class="panel-header">
           <div>
             <h2 class="panel-title">Filters</h2>
-            <p class="panel-subtitle">Leave date empty to show the next 7 days.</p>
+            <p class="panel-subtitle">Leave date empty to show all 19 loaded records. Select a date only when you want exact-date filtering.</p>
           </div>
         </div>
         <div class="panel-body">
@@ -570,7 +570,7 @@
           <div class="panel-header">
             <div>
               <h2 class="panel-title">Worker Analytics</h2>
-              <p class="panel-subtitle">Current filtered view</p>
+              <p class="panel-subtitle">All loaded records unless filters are applied</p>
             </div>
           </div>
           <div class="panel-body">
@@ -582,8 +582,8 @@
         <section class="panel">
           <div class="panel-header">
             <div>
-              <h2 class="panel-title">Overview List</h2>
-              <p class="panel-subtitle">Detailed worker table</p>
+              <h2 class="panel-title">All Records</h2>
+              <p class="panel-subtitle">Detailed worker table from the database</p>
             </div>
           </div>
           <div class="panel-body">
@@ -776,7 +776,8 @@
         const matchCompany = selectedCompany === 'All' || worker.company === selectedCompany;
         const matchBlock = selectedBlock === 'All' || worker.block === selectedBlock;
         const matchSearch = !search || worker.name.toLowerCase().includes(search);
-        const matchDate = selectedDate ? worker.dateYmd === selectedDate : isWithinNext7Days(worker.date);
+        // When no date is selected, show ALL records. The previous version showed only next 7 days, which made 19 loaded records appear as only 1 showing.
+        const matchDate = selectedDate ? worker.dateYmd === selectedDate : true;
         return matchCompany && matchBlock && matchSearch && matchDate;
       });
     }
