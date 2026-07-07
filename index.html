@@ -490,9 +490,9 @@
         <div class="kpi-help">Scheduled for current date</div>
       </article>
       <article class="kpi-card">
-        <div class="kpi-label">Next 7 Days</div>
+        <div class="kpi-label">This Week</div>
         <div class="kpi-value" id="kpi-week">0</div>
-        <div class="kpi-help">Including today</div>
+        <div class="kpi-help">Monday to Sunday</div>
       </article>
       <article class="kpi-card">
         <div class="kpi-label">Companies</div>
@@ -532,7 +532,7 @@
           <div class="panel-header">
             <div>
               <h2 class="panel-title">Today’s Workers</h2>
-              <p class="panel-subtitle">Cancel button is only shown when row number exists</p>
+              <p class="panel-subtitle">The Cancel button is only shown when a row number exists.</p>
             </div>
           </div>
           <div class="panel-body">
@@ -547,7 +547,7 @@
         <div class="panel-header">
           <div>
             <h2 class="panel-title">Filters</h2>
-            <p class="panel-subtitle">Leave date empty to show all 19 loaded records. Select a date only when you want exact-date filtering.</p>
+            <p class="panel-subtitle" id="filter-subtitle-text">Leave date empty to show all loaded records. Select a date only when you want exact-date filtering.</p>
           </div>
         </div>
         <div class="panel-body">
@@ -578,7 +578,7 @@
           <div class="panel-header">
             <div>
               <h2 class="panel-title">Worker Analytics</h2>
-              <p class="panel-subtitle">All loaded records unless filters are applied</p>
+              <p class="panel-subtitle">Showing all loaded records unless filters are applied.</p>
             </div>
           </div>
           <div class="panel-body">
@@ -618,10 +618,6 @@
       '#ea580c', '#16a34a', '#9333ea', '#0f766e', '#be123c', '#4f46e5'
     ];
 
-    // With many distinct companies, showing every single one on a bar/doughnut chart
-    // makes bars unreadable slivers and repeats the (limited) color palette endlessly.
-    // Cap the chart to the top N companies by count and fold the rest into "Others".
-    // Tweak this number if you want more/fewer individual slices shown before bucketing.
     const TOP_N_COMPANIES = 8;
     const OTHERS_LABEL = 'Others';
 
@@ -642,7 +638,8 @@
       kpiShowing: document.getElementById('kpi-showing'),
       todayChartNote: document.getElementById('today-chart-note'),
       overviewChartNote: document.getElementById('overview-chart-note'),
-      toast: document.getElementById('toast')
+      toast: document.getElementById('toast'),
+      filterSubtitleText: document.getElementById('filter-subtitle-text')
     };
 
     function setStatus(type, text) {
@@ -674,7 +671,6 @@
     function parseDateToYmd(value) {
       if (value === null || value === undefined || value === '') return null;
 
-      // Handles Google Sheet serial dates if Apps Script accidentally sends numbers.
       if (typeof value === 'number' && Number.isFinite(value)) {
         const date = new Date(Math.round((value - 25569) * 86400 * 1000));
         return Number.isNaN(date.getTime()) ? null : dateToYmd(date);
@@ -682,37 +678,21 @@
 
       const str = String(value).trim();
 
-      // FIX: Full ISO timestamp with a time component (e.g. "2026-07-06T00:00:00.000Z").
-      // Apps Script serializes real Sheet Date objects to UTC ISO strings. A cell that
-      // represents local midnight in Malaysia (UTC+8) becomes "...T16:00:00.000Z" on the
-      // PREVIOUS day once converted to UTC. Reading the date digits straight off that
-      // string (the old behavior) silently shifted every date back by one day, which is
-      // why "today" always came up empty. Parse it as a real Date and read back the
-      // LOCAL date parts instead, so it matches the browser's local "today" again.
       const isoWithTime = /^\d{4}-\d{2}-\d{2}T/.exec(str);
       if (isoWithTime) {
         const parsed = new Date(str);
         return Number.isNaN(parsed.getTime()) ? null : dateToYmd(parsed);
       }
 
-      // Plain date-only string, no time/timezone info to worry about: YYYY-MM-DD.
       const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(str);
       if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
 
-      // Slash-separated date, e.g. "7/6/2026". CONFIRMED from live API output that this
-      // backend always sends US-style M/D/YYYY (matches what new Date() assumes natively,
-      // which is why the original un-modified code always got this right). Do NOT try to
-      // "smart guess" DD/MM here - guessing based on which number is >12 silently breaks
-      // any date where the day is also <=12 (e.g. "7/6/2026" was mis-read as 6/7 = June 7
-      // instead of July 6). Only swap to day-first if the first number can't be a month.
       const slash = /^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/.exec(str);
       if (slash) {
         let first = Number(slash[1]);
         let second = Number(slash[2]);
         const year = Number(slash[3]);
 
-        // Default: first = month, second = day (US format, matches this data source).
-        // Only swap if first > 12, meaning it can't possibly be a month.
         const month = first > 12 ? second : first;
         const day = first > 12 ? first : second;
         if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
@@ -720,7 +700,6 @@
         }
       }
 
-      // Last fallback. Avoid relying on this where possible because browser parsing differs.
       const date = new Date(str);
       return Number.isNaN(date.getTime()) ? null : dateToYmd(date);
     }
@@ -736,14 +715,31 @@
       return parseDateToYmd(dateValue) === dateToYmd(new Date());
     }
 
-    function isWithinNext7Days(dateValue) {
+    function getThisWeekRange() {
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const dayOfWeek = today.getDay(); // 0 is Sunday, 1 is Monday...
+      
+      // Calculate how many days to subtract to get to the most recent Monday
+      const diffToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+      
+      const startOfWeek = new Date(today);
+      startOfWeek.setDate(today.getDate() - diffToMonday);
+      
+      const endOfWeek = new Date(startOfWeek);
+      endOfWeek.setDate(startOfWeek.getDate() + 6); // Sunday is 6 days after Monday
+      
+      return { startOfWeek, endOfWeek };
+    }
+
+    function isThisWeek(dateValue) {
       const ymd = parseDateToYmd(dateValue);
       if (!ymd) return false;
-      const today = ymdToLocalDate(dateToYmd(new Date()));
       const target = ymdToLocalDate(ymd);
-      if (!today || !target) return false;
-      const diffDays = Math.round((target - today) / 86400000);
-      return diffDays >= 0 && diffDays <= 6;
+      if (!target) return false;
+      
+      const { startOfWeek, endOfWeek } = getThisWeekRange();
+      return target >= startOfWeek && target <= endOfWeek;
     }
 
     function normalizeText(value, fallback = 'Unknown') {
@@ -794,9 +790,6 @@
       }, {});
     }
 
-    // Sorts counts descending, keeps the top N, and folds everything else into
-    // a single "Others" bucket so the chart stays readable no matter how many
-    // distinct companies (or other categories) exist in the underlying data.
     function getTopNCounts(counts, topN) {
       const entries = Object.entries(counts).sort((a, b) => b[1] - a[1]);
 
@@ -833,7 +826,6 @@
         const matchCompany = selectedCompany === 'All' || worker.company === selectedCompany;
         const matchBlock = selectedBlock === 'All' || worker.block === selectedBlock;
         const matchSearch = !search || worker.name.toLowerCase().includes(search);
-        // When no date is selected, show ALL records. The previous version showed only next 7 days, which made 19 loaded records appear as only 1 showing.
         const matchDate = selectedDate ? worker.dateYmd === selectedDate : true;
         return matchCompany && matchBlock && matchSearch && matchDate;
       });
@@ -841,7 +833,7 @@
 
     function updateKpis(filteredData) {
       els.kpiToday.textContent = globalData.filter(w => isToday(w.date)).length;
-      els.kpiWeek.textContent = globalData.filter(w => isWithinNext7Days(w.date)).length;
+      els.kpiWeek.textContent = globalData.filter(w => isThisWeek(w.date)).length;
       els.kpiCompanies.textContent = getUniqueValues(globalData, 'company').length;
       els.kpiShowing.textContent = filteredData.length;
     }
@@ -964,8 +956,6 @@
         return null;
       }
 
-      // "Others" always renders in a neutral grey so it visually reads as a
-      // catch-all bucket rather than another individual company color.
       const backgroundColor = labels.map((name, i) =>
         name === OTHERS_LABEL ? '#94a3b8' : chartColors[i % chartColors.length]
       );
@@ -1035,6 +1025,10 @@
         const payload = await response.json();
 
         globalData = normalizeApiPayload(payload);
+        
+        // Dynamically update the subtitle text with the actual count of records loaded
+        els.filterSubtitleText.textContent = `Leave date empty to show all ${globalData.length} loaded records. Select a date only when you want exact-date filtering.`;
+        
         populateFilters();
         renderAll();
         setStatus('ok', `Loaded ${globalData.length} records`);
@@ -1093,7 +1087,6 @@
         button.classList.add('active');
         document.getElementById(button.dataset.view).classList.add('active');
 
-        // Charts rendered while hidden can have wrong sizing. Resize after tab is visible.
         requestAnimationFrame(() => {
           todayChartInstance?.resize();
           overviewChartInstance?.resize();
