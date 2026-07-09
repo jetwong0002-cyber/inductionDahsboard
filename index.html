@@ -731,7 +731,6 @@
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const dayOfWeek = today.getDay(); // 0 is Sunday, 1 is Monday...
       
-      // Calculate how many days to subtract to get to the most recent Monday
       const diffToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
       
       const startOfWeek = new Date(today);
@@ -791,27 +790,22 @@
     }
 
     function normalizeWorker(raw, index) {
-      const dateValue = getRawField(raw, [
-        'date',
-        'Date',
-        'inductionDate',
-        'InductionDate',
-        'Induction Date'
-      ]);
+      const dateValue = getRawField(raw, ['date', 'Date', 'inductionDate', 'InductionDate', 'Induction Date']);
+
+      // 1. Get the raw IC value from the JSON payload
+      let rawIc = normalizeText(getRawField(raw, [
+        'icLast4', 'IcLast4', 'IC Last 4', 'IC/Passport No (last 4 digit)',
+        'Ic/Passport No (last 4 digit)', 'Ic/Passport No', 'Passport No', 'IcPassportNoLast4Digit'
+      ]), '-');
+
+      // 2. 🔥 FIX: Strip any leading apostrophes or quotes added by Google Sheets 
+      // (e.g. turning "'0019" into "0019") so the data is completely clean.
+      rawIc = rawIc.replace(/^['"‘`]+/, '');
 
       return {
         name: normalizeText(getRawField(raw, ['name', 'Name', 'workerName', 'Worker Name', 'worker', 'Worker']), 'Unnamed worker'),
         company: normalizeText(getRawField(raw, ['company', 'Company']), 'Unknown company'),
-        icLast4: normalizeText(getRawField(raw, [
-          'icLast4',
-          'IcLast4',
-          'IC Last 4',
-          'IC/Passport No (last 4 digit)',
-          'Ic/Passport No (last 4 digit)',
-          'Ic/Passport No',
-          'Passport No',
-          'IcPassportNoLast4Digit'
-        ]), '-'),
+        icLast4: rawIc, // Now cleanly stored without the apostrophe
         position: normalizeText(getRawField(raw, ['position', 'Position']), '-'),
         nationality: normalizeText(getRawField(raw, ['nationality', 'Nationality']), '-'),
         block: normalizeText(getRawField(raw, ['block', 'Block']), 'No block'),
@@ -885,12 +879,6 @@
       return String(value ?? '').replace(/[^0-9A-Za-z]/g, '').toUpperCase();
     }
 
-    function getLast4Chars(value) {
-      const clean = getCleanAlphaNum(value);
-      if (!clean) return '';
-      return clean.length >= 4 ? clean.slice(-4) : clean.padStart(4, '0');
-    }
-
     function getFilteredOverviewData() {
       const selectedCompany = els.filterCompany.value;
       const selectedBlock = els.filterBlock.value;
@@ -901,12 +889,17 @@
       const searchLast4 = searchClean.length >= 4 ? searchClean.slice(-4) : '';
 
       return globalData.filter(worker => {
-        const workerLast4 = getLast4Chars(worker.icLast4);
-
+        // 🔥 FIX: Check if the user's search text exists anywhere in the worker's IC.
+        // This ensures full matching even if there are unexpected characters.
+        const cleanWorkerIc = getCleanAlphaNum(worker.icLast4);
+        
         const matchCompany = selectedCompany === 'All' || worker.company === selectedCompany;
         const matchBlock = selectedBlock === 'All' || worker.block === selectedBlock;
         const matchStatus = selectedStatus === 'All' || worker.status === selectedStatus;
-        const matchSearch = !searchClean || (searchClean.length >= 4 && workerLast4 === searchLast4);
+        
+        // If the user typed a 4-letter search, it will match if the worker IC contains it
+        const matchSearch = !searchClean || (searchClean.length >= 4 && cleanWorkerIc.includes(searchLast4));
+        
         const matchDate = selectedDate ? worker.dateYmd === selectedDate : true;
 
         return matchCompany && matchBlock && matchStatus && matchSearch && matchDate;
@@ -1138,7 +1131,6 @@
 
         globalData = normalizeApiPayload(payload);
         
-        // Dynamically update the subtitle text with the actual count of records loaded
         els.filterSubtitleText.textContent = `Leave date empty to show all ${globalData.length} loaded records. Select a date only when you want exact-date filtering.`;
         
         populateFilters();
