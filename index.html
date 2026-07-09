@@ -614,6 +614,11 @@
 
   <script>
     const API_URL = "https://script.google.com/macros/s/AKfycbxq2HLWnl1KgT2sfP07LawSe821tF5y3Px92X4INTTosLwEVkP5hbP38LObcI63mT7iDg/exec";
+    const API_KEY = "bdd821cd7f8e4ab4be6eae00aacb8dc3";
+
+    function buildApiUrl() {
+      return `${API_URL}?key=${encodeURIComponent(API_KEY)}&_=${Date.now()}`;
+    }
 
     let globalData = [];
     let todayChartInstance = null;
@@ -810,8 +815,9 @@
       // fuzzy-matching any header that mentions ic/nric/passport/last4.
       let rawIc = normalizeText(
         getRawField(raw, [
-          'icLast4', 'IcLast4', 'IC Last 4', 'IC/Passport No (last 4 digit)',
-          'Ic/Passport No (last 4 digit)', 'Ic/Passport No', 'Passport No', 'IcPassportNoLast4Digit'
+          'icLast4', 'IcLast4', 'ic_last4', 'IC Last 4', 'IC/Passport No (last 4 digit)',
+          'Ic/Passport No (last 4 digit)', 'Ic/Passport No', 'Passport No', 'IcPassportNoLast4Digit',
+          'Ic/Passport No (last 4 digits)', 'IC/Passport Last 4', 'ICPassportLast4'
         ]) || findFieldByFragments(raw, [
           ['last4'],
           ['ic', 'passport'],
@@ -859,8 +865,19 @@
     }
 
     function normalizeApiPayload(payload) {
-      const rows = Array.isArray(payload) ? payload : Array.isArray(payload?.data) ? payload.data : null;
-      if (!rows) throw new Error('API did not return an array. Check Apps Script JSON output.');
+      const rows = Array.isArray(payload)
+        ? payload
+        : Array.isArray(payload?.records)
+          ? payload.records
+          : Array.isArray(payload?.data)
+            ? payload.data
+            : null;
+
+      if (!rows) {
+        const apiMessage = payload?.error || payload?.message || 'API did not return records/data array. Check Apps Script JSON output.';
+        throw new Error(apiMessage);
+      }
+
       return rows.map(normalizeWorker);
     }
 
@@ -1159,7 +1176,7 @@
       els.overviewDashboard.innerHTML = '<div class="loading-state">Loading overview...</div>';
 
       try {
-        const response = await fetch(API_URL, { cache: 'no-store' });
+        const response = await fetch(buildApiUrl(), { cache: 'no-store' });
         if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         const payload = await response.json();
 
@@ -1194,7 +1211,7 @@
       btnElement.textContent = 'Cancelling...';
 
       try {
-        const response = await fetch(API_URL, {
+        const response = await fetch(buildApiUrl(), {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
           body: JSON.stringify({ rowNumber })
