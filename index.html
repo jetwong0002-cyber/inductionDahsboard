@@ -553,8 +553,16 @@
         <div class="panel-body">
           <div class="filters">
             <div class="field">
-              <label for="filter-search">Search name</label>
-              <input id="filter-search" type="search" placeholder="e.g. Ali, Kumar" />
+              <label for="filter-search">Search IC/Passport Last 4</label>
+              <input
+                id="filter-search"
+                type="text"
+                inputmode="numeric"
+                maxlength="4"
+                autocomplete="off"
+                placeholder="e.g. 0019"
+                aria-label="Search worker by exact last 4 digits of IC or Passport"
+              />
             </div>
             <div class="field">
               <label for="filter-date">Date</label>
@@ -875,29 +883,32 @@
       }, {});
     }
 
+    function normalizeLast4Digits(value) {
+      // Keep digits only, then preserve the final 4 digits as text.
+      // Example: "'0019" -> "0019", 0019 -> depends on backend preservation,
+      // and "A1230019" -> "0019".
+      const digits = String(value ?? '').replace(/\\D/g, '');
+      return digits.length >= 4 ? digits.slice(-4) : digits.padStart(4, '0');
+    }
+
     function getFilteredOverviewData() {
       const selectedCompany = els.filterCompany.value;
       const selectedBlock = els.filterBlock.value;
       const selectedStatus = els.filterStatus.value;
       const selectedDate = els.filterDate.value;
-      const search = els.filterSearch.value.trim().toLowerCase();
+
+      // Dedicated worker lookup: exact 4-digit IC/Passport match only.
+      const searchLast4 = els.filterSearch.value.replace(/\\D/g, '').slice(0, 4);
 
       return globalData.filter(worker => {
-        const searchableText = [
-          worker.name,
-          worker.company,
-          worker.icLast4,
-          worker.position,
-          worker.nationality,
-          worker.block,
-          worker.status
-        ].join(' ').toLowerCase();
+        const workerLast4 = normalizeLast4Digits(worker.icLast4);
 
         const matchCompany = selectedCompany === 'All' || worker.company === selectedCompany;
         const matchBlock = selectedBlock === 'All' || worker.block === selectedBlock;
         const matchStatus = selectedStatus === 'All' || worker.status === selectedStatus;
-        const matchSearch = !search || searchableText.includes(search);
+        const matchSearch = !searchLast4 || (searchLast4.length === 4 && workerLast4 === searchLast4);
         const matchDate = selectedDate ? worker.dateYmd === selectedDate : true;
+
         return matchCompany && matchBlock && matchStatus && matchSearch && matchDate;
       });
     }
@@ -1200,7 +1211,31 @@
       });
     });
 
-    [els.filterSearch, els.filterDate, els.filterCompany, els.filterBlock, els.filterStatus].forEach(input => {
+    // Allow only 4 digits in the IC/Passport search box.
+    // Leading zeroes are preserved because the input is text, not number.
+    els.filterSearch.addEventListener('input', () => {
+      const cleaned = els.filterSearch.value.replace(/\\D/g, '').slice(0, 4);
+      if (els.filterSearch.value !== cleaned) {
+        els.filterSearch.value = cleaned;
+      }
+
+      if (cleaned.length > 0 && cleaned.length < 4) {
+        els.kpiShowing.textContent = '0';
+        els.overviewDashboard.innerHTML =
+          '<div class="empty-state">Enter exactly 4 digits to search a worker.</div>';
+
+        if (overviewChartInstance) {
+          overviewChartInstance.destroy();
+          overviewChartInstance = null;
+        }
+        els.overviewChartNote.textContent = 'Enter all 4 digits to search.';
+        return;
+      }
+
+      renderOverviewView();
+    });
+
+    [els.filterDate, els.filterCompany, els.filterBlock, els.filterStatus].forEach(input => {
       input.addEventListener('input', renderOverviewView);
       input.addEventListener('change', renderOverviewView);
     });
