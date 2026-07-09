@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Longmotive Induction Command Center - Fixed All Records</title>
+  <title>Longmotive Induction Command Center - New Header Compatible</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     :root {
@@ -272,7 +272,7 @@
 
     .filters {
       display: grid;
-      grid-template-columns: repeat(4, minmax(155px, 1fr)) auto;
+      grid-template-columns: repeat(5, minmax(145px, 1fr)) auto;
       gap: 12px;
       align-items: end;
     }
@@ -568,6 +568,10 @@
               <label for="filter-block">Block</label>
               <select id="filter-block"><option value="All">All Blocks</option></select>
             </div>
+            <div class="field">
+              <label for="filter-status">Status</label>
+              <select id="filter-status"><option value="All">All Status</option></select>
+            </div>
             <button class="btn btn-ghost" id="clear-filters-btn" type="button">Clear</button>
           </div>
         </div>
@@ -631,6 +635,7 @@
       filterDate: document.getElementById('filter-date'),
       filterCompany: document.getElementById('filter-company'),
       filterBlock: document.getElementById('filter-block'),
+      filterStatus: document.getElementById('filter-status'),
       clearFiltersBtn: document.getElementById('clear-filters-btn'),
       kpiToday: document.getElementById('kpi-today'),
       kpiWeek: document.getElementById('kpi-week'),
@@ -747,14 +752,67 @@
       return text || fallback;
     }
 
+    function normalizeHeaderKey(key) {
+      return String(key || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    }
+
+    function getRawField(raw, possibleKeys, fallback = '') {
+      if (!raw || typeof raw !== 'object') return fallback;
+
+      for (const key of possibleKeys) {
+        if (Object.prototype.hasOwnProperty.call(raw, key)) {
+          const value = raw[key];
+          if (value !== null && value !== undefined && String(value).trim() !== '') return value;
+        }
+      }
+
+      const normalizedLookup = {};
+      Object.keys(raw).forEach(key => {
+        normalizedLookup[normalizeHeaderKey(key)] = raw[key];
+      });
+
+      for (const key of possibleKeys) {
+        const value = normalizedLookup[normalizeHeaderKey(key)];
+        if (value !== null && value !== undefined && String(value).trim() !== '') return value;
+      }
+
+      return fallback;
+    }
+
+    function isCancelled(worker) {
+      const status = normalizeText(worker?.status, '').toLowerCase();
+      return ['cancel', 'cancelled', 'canceled', 'inactive', 'void', 'deleted'].some(word => status.includes(word));
+    }
+
     function normalizeWorker(raw, index) {
+      const dateValue = getRawField(raw, [
+        'date',
+        'Date',
+        'inductionDate',
+        'InductionDate',
+        'Induction Date'
+      ]);
+
       return {
-        name: normalizeText(raw.name || raw.workerName || raw.worker || raw.Name, 'Unnamed worker'),
-        company: normalizeText(raw.company || raw.Company, 'Unknown company'),
-        block: normalizeText(raw.block || raw.Block, 'No block'),
-        date: raw.date || raw.Date || raw.inductionDate || raw['Induction Date'] || '',
-        dateYmd: parseDateToYmd(raw.date || raw.Date || raw.inductionDate || raw['Induction Date'] || ''),
-        rowNumber: raw.rowNumber ?? raw.row ?? raw.Row ?? '',
+        name: normalizeText(getRawField(raw, ['name', 'Name', 'workerName', 'Worker Name', 'worker', 'Worker']), 'Unnamed worker'),
+        company: normalizeText(getRawField(raw, ['company', 'Company']), 'Unknown company'),
+        icLast4: normalizeText(getRawField(raw, [
+          'icLast4',
+          'IcLast4',
+          'IC Last 4',
+          'IC/Passport No (last 4 digit)',
+          'Ic/Passport No (last 4 digit)',
+          'Ic/Passport No',
+          'Passport No',
+          'IcPassportNoLast4Digit'
+        ]), '-'),
+        position: normalizeText(getRawField(raw, ['position', 'Position']), '-'),
+        nationality: normalizeText(getRawField(raw, ['nationality', 'Nationality']), '-'),
+        block: normalizeText(getRawField(raw, ['block', 'Block']), 'No block'),
+        status: normalizeText(getRawField(raw, ['status', 'Status']), 'Active'),
+        date: dateValue,
+        dateYmd: parseDateToYmd(dateValue),
+        rowNumber: getRawField(raw, ['rowNumber', 'Row Number', 'row', 'Row'], ''),
         originalIndex: index
       };
     }
@@ -780,6 +838,7 @@
     function populateFilters() {
       fillSelect(els.filterCompany, 'All Companies', getUniqueValues(globalData, 'company'));
       fillSelect(els.filterBlock, 'All Blocks', getUniqueValues(globalData, 'block'));
+      fillSelect(els.filterStatus, 'All Status', getUniqueValues(globalData, 'status'));
     }
 
     function getCounts(array, key) {
@@ -819,21 +878,34 @@
     function getFilteredOverviewData() {
       const selectedCompany = els.filterCompany.value;
       const selectedBlock = els.filterBlock.value;
+      const selectedStatus = els.filterStatus.value;
       const selectedDate = els.filterDate.value;
       const search = els.filterSearch.value.trim().toLowerCase();
 
       return globalData.filter(worker => {
+        const searchableText = [
+          worker.name,
+          worker.company,
+          worker.icLast4,
+          worker.position,
+          worker.nationality,
+          worker.block,
+          worker.status
+        ].join(' ').toLowerCase();
+
         const matchCompany = selectedCompany === 'All' || worker.company === selectedCompany;
         const matchBlock = selectedBlock === 'All' || worker.block === selectedBlock;
-        const matchSearch = !search || worker.name.toLowerCase().includes(search);
+        const matchStatus = selectedStatus === 'All' || worker.status === selectedStatus;
+        const matchSearch = !search || searchableText.includes(search);
         const matchDate = selectedDate ? worker.dateYmd === selectedDate : true;
-        return matchCompany && matchBlock && matchSearch && matchDate;
+        return matchCompany && matchBlock && matchStatus && matchSearch && matchDate;
       });
     }
 
     function updateKpis(filteredData) {
-      els.kpiToday.textContent = globalData.filter(w => isToday(w.date)).length;
-      els.kpiWeek.textContent = globalData.filter(w => isThisWeek(w.date)).length;
+      const activeData = globalData.filter(worker => !isCancelled(worker));
+      els.kpiToday.textContent = activeData.filter(w => isToday(w.date)).length;
+      els.kpiWeek.textContent = activeData.filter(w => isThisWeek(w.date)).length;
       els.kpiCompanies.textContent = getUniqueValues(globalData, 'company').length;
       els.kpiShowing.textContent = filteredData.length;
     }
@@ -876,18 +948,37 @@
 
           const meta = document.createElement('div');
           meta.className = 'worker-meta';
+
           const dateTag = document.createElement('span');
           dateTag.className = 'tag';
           dateTag.textContent = `📅 ${formatDate(worker.date)}`;
+
           const blockTag = document.createElement('span');
           blockTag.className = 'tag';
           blockTag.textContent = `📍 ${worker.block}`;
-          meta.append(dateTag, blockTag);
+
+          const icTag = document.createElement('span');
+          icTag.className = 'tag';
+          icTag.textContent = `🪪 ${worker.icLast4}`;
+
+          const positionTag = document.createElement('span');
+          positionTag.className = 'tag';
+          positionTag.textContent = `💼 ${worker.position}`;
+
+          const nationalityTag = document.createElement('span');
+          nationalityTag.className = 'tag';
+          nationalityTag.textContent = `🌐 ${worker.nationality}`;
+
+          const statusTag = document.createElement('span');
+          statusTag.className = 'tag';
+          statusTag.textContent = `✅ ${worker.status}`;
+
+          meta.append(dateTag, blockTag, icTag, positionTag, nationalityTag, statusTag);
 
           info.append(name, meta);
           row.appendChild(info);
 
-          if (options.showCancel && worker.rowNumber !== '') {
+          if (options.showCancel && worker.rowNumber !== '' && !isCancelled(worker)) {
             const btn = document.createElement('button');
             btn.className = 'btn btn-danger cancel-worker-btn';
             btn.type = 'button';
@@ -918,12 +1009,22 @@
       const wrap = document.createElement('div');
       wrap.className = 'table-wrap';
       const table = document.createElement('table');
-      table.innerHTML = '<thead><tr><th>Name</th><th>Company</th><th>Block</th><th>Date</th><th>Row</th></tr></thead>';
+      table.innerHTML = '<thead><tr><th>Name</th><th>Company</th><th>IC/Passport Last 4</th><th>Position</th><th>Nationality</th><th>Block</th><th>Date</th><th>Status</th><th>Row</th></tr></thead>';
       const tbody = document.createElement('tbody');
 
       workers.forEach(worker => {
         const tr = document.createElement('tr');
-        [worker.name, worker.company, worker.block, formatDate(worker.date), worker.rowNumber || '-'].forEach(value => {
+        [
+          worker.name,
+          worker.company,
+          worker.icLast4,
+          worker.position,
+          worker.nationality,
+          worker.block,
+          formatDate(worker.date),
+          worker.status,
+          worker.rowNumber || '-'
+        ].forEach(value => {
           const td = document.createElement('td');
           td.textContent = value;
           tr.appendChild(td);
@@ -991,7 +1092,7 @@
     }
 
     function renderTodayView() {
-      const todayData = globalData.filter(worker => isToday(worker.date));
+      const todayData = globalData.filter(worker => isToday(worker.date) && !isCancelled(worker));
       renderList(els.todayDashboard, todayData, {
         showCancel: true,
         emptyText: 'No workers scheduled for today.'
@@ -1069,7 +1170,12 @@
           throw new Error(result.message || 'Backend did not confirm success.');
         }
 
-        globalData = globalData.filter(worker => String(worker.rowNumber) !== String(rowNumber));
+        globalData = globalData.map(worker =>
+          String(worker.rowNumber) === String(rowNumber)
+            ? { ...worker, status: 'Cancelled' }
+            : worker
+        );
+        populateFilters();
         renderAll();
         showToast(`${workerName} cancelled.`);
       } catch (error) {
@@ -1094,7 +1200,7 @@
       });
     });
 
-    [els.filterSearch, els.filterDate, els.filterCompany, els.filterBlock].forEach(input => {
+    [els.filterSearch, els.filterDate, els.filterCompany, els.filterBlock, els.filterStatus].forEach(input => {
       input.addEventListener('input', renderOverviewView);
       input.addEventListener('change', renderOverviewView);
     });
@@ -1104,6 +1210,7 @@
       els.filterDate.value = '';
       els.filterCompany.value = 'All';
       els.filterBlock.value = 'All';
+      els.filterStatus.value = 'All';
       renderOverviewView();
     });
 
