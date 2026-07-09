@@ -779,6 +779,25 @@
       return fallback;
     }
 
+    // Last-resort scan: instead of matching an exact header string, look for any
+    // column header that *contains* all the given fragments (e.g. 'ic' + 'last4',
+    // or 'passport'). Catches header wording we didn't anticipate, e.g.
+    // "IC / Passport (Last 4)", "NRIC Last 4 Digits", "Passport/IC No.".
+    function findFieldByFragments(raw, fragmentGroups, fallback = '') {
+      if (!raw || typeof raw !== 'object') return fallback;
+      const keys = Object.keys(raw);
+      for (const fragments of fragmentGroups) {
+        for (const key of keys) {
+          const normalized = normalizeHeaderKey(key);
+          if (fragments.every(fragment => normalized.includes(fragment))) {
+            const value = raw[key];
+            if (value !== null && value !== undefined && String(value).trim() !== '') return value;
+          }
+        }
+      }
+      return fallback;
+    }
+
     function isCancelled(worker) {
       const status = normalizeText(worker?.status, '').toLowerCase();
       return ['cancel', 'cancelled', 'canceled', 'inactive', 'void', 'deleted'].some(word => status.includes(word));
@@ -787,13 +806,23 @@
     function normalizeWorker(raw, index) {
       const dateValue = getRawField(raw, ['date', 'Date', 'inductionDate', 'InductionDate', 'Induction Date']);
 
-      // 1. Get the raw IC value from the JSON payload
-      let rawIc = normalizeText(getRawField(raw, [
-        'icLast4', 'IcLast4', 'IC Last 4', 'IC/Passport No (last 4 digit)',
-        'Ic/Passport No (last 4 digit)', 'Ic/Passport No', 'Passport No', 'IcPassportNoLast4Digit'
-      ]), '-');
+      // 1. Get the raw IC value — try known exact headers first, then fall back to
+      // fuzzy-matching any header that mentions ic/nric/passport/last4.
+      let rawIc = normalizeText(
+        getRawField(raw, [
+          'icLast4', 'IcLast4', 'IC Last 4', 'IC/Passport No (last 4 digit)',
+          'Ic/Passport No (last 4 digit)', 'Ic/Passport No', 'Passport No', 'IcPassportNoLast4Digit'
+        ]) || findFieldByFragments(raw, [
+          ['last4'],
+          ['ic', 'passport'],
+          ['nric'],
+          ['ic'],
+          ['passport']
+        ]),
+        '-'
+      );
 
-      // 2. 🔥 FIX: Strip any leading apostrophes or quotes added by Google Sheets 
+      // 2. Strip any leading apostrophes or quotes added by Google Sheets
       // (e.g. turning "'0019" into "0019") so the data is completely clean.
       rawIc = rawIc.replace(/^['"‘`]+/, '');
 
@@ -804,10 +833,10 @@
         rawIc = rawIc.padStart(4, '0');
       }
 
-      return {
+      const worker = {
         name: normalizeText(getRawField(raw, ['name', 'Name', 'workerName', 'Worker Name', 'worker', 'Worker']), 'Unnamed worker'),
         company: normalizeText(getRawField(raw, ['company', 'Company']), 'Unknown company'),
-        icLast4: rawIc, // Now cleanly stored without the apostrophe
+        icLast4: rawIc,
         position: normalizeText(getRawField(raw, ['position', 'Position']), '-'),
         nationality: normalizeText(getRawField(raw, ['nationality', 'Nationality']), '-'),
         block: normalizeText(getRawField(raw, ['block', 'Block']), 'No block'),
@@ -817,6 +846,16 @@
         rowNumber: getRawField(raw, ['rowNumber', 'Row Number', 'row', 'Row'], ''),
         originalIndex: index
       };
+
+      // DEBUG: log raw headers + resolved IC for row 0 — open browser console (F12)
+      // to check whether icLast4 is actually being picked up from your sheet.
+      if (index === 0) {
+        console.log('[Longmotive debug] raw column headers from API:', Object.keys(raw || {}));
+        console.log('[Longmotive debug] raw row 0:', raw);
+        console.log('[Longmotive debug] resolved icLast4 for row 0:', worker.icLast4);
+      }
+
+      return worker;
     }
 
     function normalizeApiPayload(payload) {
