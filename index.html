@@ -547,7 +547,7 @@
         <div class="panel-header">
           <div>
             <h2 class="panel-title">Filters</h2>
-            <p class="panel-subtitle" id="filter-subtitle-text">Leave date empty to show all loaded records. Select a date only when you want exact-date filtering.</p>
+            <p class="panel-subtitle" id="filter-subtitle-text">Enter exactly 4 digits to search IC/Passport. Leave date empty to show all loaded records.</p>
           </div>
         </div>
         <div class="panel-body">
@@ -557,9 +557,12 @@
               <input
                 id="filter-search"
                 type="text"
+                inputmode="numeric"
+                pattern="\d{4}"
+                maxlength="4"
                 autocomplete="off"
-                placeholder="Type full IC/passport or last 4, e.g. A123"
-                aria-label="Search worker by full IC or Passport, or exact last 4 characters"
+                placeholder="Enter 4 digits only, e.g. 0019"
+                aria-label="Search worker by exactly 4 IC or Passport digits"
               />
             </div>
             <div class="field">
@@ -932,8 +935,13 @@
       }, {});
     }
 
-    function getCleanAlphaNum(value) {
-      return String(value ?? '').replace(/[^0-9A-Za-z]/g, '').toUpperCase();
+    function getSearchDigits(value) {
+      return String(value ?? '').replace(/\D/g, '').slice(0, 4);
+    }
+
+    function getWorkerIcLast4(value) {
+      const digits = String(value ?? '').replace(/\D/g, '');
+      return digits ? digits.slice(-4).padStart(4, '0') : '';
     }
 
     function getFilteredOverviewData() {
@@ -941,20 +949,14 @@
       const selectedBlock = els.filterBlock.value;
       const selectedDate = els.filterDate.value;
 
-      const searchClean = getCleanAlphaNum(els.filterSearch.value);
-      const searchLast4 = searchClean.length >= 4 ? searchClean.slice(-4) : '';
+      const searchDigits = getSearchDigits(els.filterSearch.value);
 
       return globalData.filter(worker => {
-        // 🔥 FIX: Check if the user's search text exists anywhere in the worker's IC.
-        // This ensures full matching even if there are unexpected characters.
-        const cleanWorkerIc = getCleanAlphaNum(worker.icLast4);
+        const workerIcLast4 = getWorkerIcLast4(worker.icLast4);
         
         const matchCompany = selectedCompany === 'All' || worker.company === selectedCompany;
         const matchBlock = selectedBlock === 'All' || worker.block === selectedBlock;
-        
-        // If the user typed a 4-letter search, it will match if the worker IC contains it
-        const matchSearch = !searchClean || (searchClean.length >= 4 && cleanWorkerIc.includes(searchLast4));
-        
+        const matchSearch = !searchDigits || (searchDigits.length === 4 && workerIcLast4 === searchDigits);
         const matchDate = selectedDate ? worker.dateYmd === selectedDate : true;
 
         return matchCompany && matchBlock && matchSearch && matchDate;
@@ -1016,19 +1018,13 @@
           blockTag.className = 'tag';
           blockTag.textContent = `📍 ${worker.block}`;
 
-          const icTag = document.createElement('span');
-          icTag.className = 'tag';
-          icTag.textContent = worker.icLast4;
-
-          const positionTag = document.createElement('span');
-          positionTag.className = 'tag';
-          positionTag.textContent = worker.position;
-
           const nationalityTag = document.createElement('span');
           nationalityTag.className = 'tag';
           nationalityTag.textContent = worker.nationality;
 
-          meta.append(dateTag, blockTag, icTag, positionTag, nationalityTag);
+          // Worker cards intentionally hide IC/Passport, position, and status.
+          // IC/Passport last 4 is displayed only in the All Records table.
+          meta.append(dateTag, blockTag, nationalityTag);
 
           info.append(name, meta);
           row.appendChild(info);
@@ -1064,7 +1060,7 @@
       const wrap = document.createElement('div');
       wrap.className = 'table-wrap';
       const table = document.createElement('table');
-      table.innerHTML = '<thead><tr><th>Name</th><th>Company</th><th>IC/Passport Last 4</th><th>Position</th><th>Nationality</th><th>Block</th><th>Date</th><th>Status</th><th>Row</th></tr></thead>';
+      table.innerHTML = '<thead><tr><th>Name</th><th>Company</th><th>IC/Passport Last 4</th><th>Nationality</th><th>Block</th><th>Date</th><th>Row</th></tr></thead>';
       const tbody = document.createElement('tbody');
 
       workers.forEach(worker => {
@@ -1073,11 +1069,9 @@
           worker.name,
           worker.company,
           worker.icLast4,
-          worker.position,
           worker.nationality,
           worker.block,
           formatDate(worker.date),
-          worker.status,
           worker.rowNumber || '-'
         ].forEach(value => {
           const td = document.createElement('td');
@@ -1182,7 +1176,7 @@
 
         globalData = normalizeApiPayload(payload);
         
-        els.filterSubtitleText.textContent = `Leave date empty to show all ${globalData.length} loaded records. Select a date only when you want exact-date filtering.`;
+        els.filterSubtitleText.textContent = `Enter exactly 4 digits to search IC/Passport. Leave date empty to show all ${globalData.length} loaded records.`;
         
         populateFilters();
         renderAll();
@@ -1255,22 +1249,22 @@
     });
 
     els.filterSearch.addEventListener('input', () => {
-      const cleaned = els.filterSearch.value.replace(/[^0-9A-Za-z]/g, '').toUpperCase();
-      if (els.filterSearch.value !== cleaned) {
-        els.filterSearch.value = cleaned;
+      const digitsOnly = getSearchDigits(els.filterSearch.value);
+      if (els.filterSearch.value !== digitsOnly) {
+        els.filterSearch.value = digitsOnly;
       }
 
-      const charCount = cleaned.length;
-      if (charCount > 0 && charCount < 4) {
+      const digitCount = digitsOnly.length;
+      if (digitCount > 0 && digitCount < 4) {
         els.kpiShowing.textContent = '0';
         els.overviewDashboard.innerHTML =
-          '<div class="empty-state">Enter at least 4 characters, or paste the full IC/passport number.</div>';
+          '<div class="empty-state">Enter exactly 4 digits to search IC/Passport.</div>';
 
         if (overviewChartInstance) {
           overviewChartInstance.destroy();
           overviewChartInstance = null;
         }
-        els.overviewChartNote.textContent = 'Search will match the last 4 characters.';
+        els.overviewChartNote.textContent = 'Search accepts digits only and must be exactly 4 digits.';
         return;
       }
 
