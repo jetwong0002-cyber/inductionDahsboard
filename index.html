@@ -553,15 +553,15 @@
         <div class="panel-body">
           <div class="filters">
             <div class="field">
-              <label for="filter-search">Search IC/Passport Last 4</label>
+              <label for="filter-search">Search IC/Passport</label>
               <input
                 id="filter-search"
                 type="text"
                 inputmode="numeric"
-                maxlength="4"
+                maxlength="30"
                 autocomplete="off"
-                placeholder="e.g. 0019"
-                aria-label="Search worker by exact last 4 digits of IC or Passport"
+                placeholder="Type full IC/passport or last 4, e.g. 0019"
+                aria-label="Search worker by full IC or Passport, or exact last 4 digits"
               />
             </div>
             <div class="field">
@@ -883,11 +883,13 @@
       }, {});
     }
 
-    function normalizeLast4Digits(value) {
-      // Keep digits only, then preserve the final 4 digits as text.
-      // Example: "'0019" -> "0019", 0019 -> depends on backend preservation,
-      // and "A1230019" -> "0019".
-      const digits = String(value ?? '').replace(/\\D/g, '');
+    function getDigitsOnly(value) {
+      return String(value ?? '').replace(/\\D/g, '');
+    }
+
+    function getLast4Digits(value) {
+      const digits = getDigitsOnly(value);
+      if (!digits) return '';
       return digits.length >= 4 ? digits.slice(-4) : digits.padStart(4, '0');
     }
 
@@ -897,16 +899,18 @@
       const selectedStatus = els.filterStatus.value;
       const selectedDate = els.filterDate.value;
 
-      // Dedicated worker lookup: exact 4-digit IC/Passport match only.
-      const searchLast4 = els.filterSearch.value.replace(/\\D/g, '').slice(0, 4);
+      // User can type full IC/passport OR only last 4 digits.
+      // We always compare using the LAST 4 digits.
+      const searchDigits = getDigitsOnly(els.filterSearch.value);
+      const searchLast4 = searchDigits.length >= 4 ? searchDigits.slice(-4) : '';
 
       return globalData.filter(worker => {
-        const workerLast4 = normalizeLast4Digits(worker.icLast4);
+        const workerLast4 = getLast4Digits(worker.icLast4);
 
         const matchCompany = selectedCompany === 'All' || worker.company === selectedCompany;
         const matchBlock = selectedBlock === 'All' || worker.block === selectedBlock;
         const matchStatus = selectedStatus === 'All' || worker.status === selectedStatus;
-        const matchSearch = !searchLast4 || (searchLast4.length === 4 && workerLast4 === searchLast4);
+        const matchSearch = !searchDigits || (searchDigits.length >= 4 && workerLast4 === searchLast4);
         const matchDate = selectedDate ? worker.dateYmd === selectedDate : true;
 
         return matchCompany && matchBlock && matchStatus && matchSearch && matchDate;
@@ -1211,24 +1215,25 @@
       });
     });
 
-    // Allow only 4 digits in the IC/Passport search box.
+    // Search supports full IC/passport OR last 4 digits.
     // Leading zeroes are preserved because the input is text, not number.
     els.filterSearch.addEventListener('input', () => {
-      const cleaned = els.filterSearch.value.replace(/\\D/g, '').slice(0, 4);
+      const cleaned = els.filterSearch.value.replace(/[^0-9A-Za-z]/g, '').toUpperCase();
       if (els.filterSearch.value !== cleaned) {
         els.filterSearch.value = cleaned;
       }
 
-      if (cleaned.length > 0 && cleaned.length < 4) {
+      const digitCount = cleaned.replace(/\\D/g, '').length;
+      if (digitCount > 0 && digitCount < 4) {
         els.kpiShowing.textContent = '0';
         els.overviewDashboard.innerHTML =
-          '<div class="empty-state">Enter exactly 4 digits to search a worker.</div>';
+          '<div class="empty-state">Enter at least 4 digits, or paste the full IC/passport number.</div>';
 
         if (overviewChartInstance) {
           overviewChartInstance.destroy();
           overviewChartInstance = null;
         }
-        els.overviewChartNote.textContent = 'Enter all 4 digits to search.';
+        els.overviewChartNote.textContent = 'Search will match the last 4 digits.';
         return;
       }
 
