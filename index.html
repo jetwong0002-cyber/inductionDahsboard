@@ -403,6 +403,20 @@
       text-align: center;
     }
 
+    .mini-chart-title {
+      margin: 0 0 10px;
+      color: #334155;
+      font-size: 14px;
+      font-weight: 850;
+      letter-spacing: -0.01em;
+    }
+
+    .chart-divider {
+      height: 1px;
+      background: var(--line);
+      margin: 18px 0;
+    }
+
     .table-wrap {
       width: 100%;
       overflow-x: auto;
@@ -517,14 +531,23 @@
           <div class="panel-header">
             <div>
               <h2 class="panel-title">Today’s Headcount</h2>
-              <p class="panel-subtitle">Grouped by company</p>
+              <p class="panel-subtitle">Grouped by company and nationality</p>
             </div>
           </div>
           <div class="panel-body">
+            <h3 class="mini-chart-title">By Company</h3>
             <div class="chart-canvas-wrap">
               <canvas id="todayChart"></canvas>
             </div>
             <div id="today-chart-note" class="chart-note"></div>
+
+            <div class="chart-divider"></div>
+
+            <h3 class="mini-chart-title">By Nationality</h3>
+            <div class="chart-canvas-wrap">
+              <canvas id="todayNationalityChart"></canvas>
+            </div>
+            <div id="today-nationality-chart-note" class="chart-note"></div>
           </div>
         </aside>
 
@@ -587,14 +610,23 @@
           <div class="panel-header">
             <div>
               <h2 class="panel-title">Worker Analytics</h2>
-              <p class="panel-subtitle">Showing all loaded records unless filters are applied.</p>
+              <p class="panel-subtitle">Showing company and nationality breakdowns for the current filter.</p>
             </div>
           </div>
           <div class="panel-body">
+            <h3 class="mini-chart-title">By Company</h3>
             <div class="chart-canvas-wrap">
               <canvas id="overviewChart"></canvas>
             </div>
             <div id="overview-chart-note" class="chart-note"></div>
+
+            <div class="chart-divider"></div>
+
+            <h3 class="mini-chart-title">By Nationality</h3>
+            <div class="chart-canvas-wrap">
+              <canvas id="overviewNationalityChart"></canvas>
+            </div>
+            <div id="overview-nationality-chart-note" class="chart-note"></div>
           </div>
         </aside>
 
@@ -625,7 +657,9 @@
 
     let globalData = [];
     let todayChartInstance = null;
+    let todayNationalityChartInstance = null;
     let overviewChartInstance = null;
+    let overviewNationalityChartInstance = null;
 
     const chartColors = [
       '#2563eb', '#059669', '#d97706', '#dc2626', '#7c3aed', '#0891b2',
@@ -651,7 +685,9 @@
       kpiCompanies: document.getElementById('kpi-companies'),
       kpiShowing: document.getElementById('kpi-showing'),
       todayChartNote: document.getElementById('today-chart-note'),
+      todayNationalityChartNote: document.getElementById('today-nationality-chart-note'),
       overviewChartNote: document.getElementById('overview-chart-note'),
+      overviewNationalityChartNote: document.getElementById('overview-nationality-chart-note'),
       toast: document.getElementById('toast'),
       filterSubtitleText: document.getElementById('filter-subtitle-text')
     };
@@ -1086,15 +1122,17 @@
       container.appendChild(wrap);
     }
 
-    function drawChart(canvasId, noteEl, chartType, data, label) {
+    function drawChart(canvasId, noteEl, chartType, data, label, countKey = 'company', groupName = 'companies') {
       const canvas = document.getElementById(canvasId);
-      const counts = getCounts(data, 'company');
+      const counts = getCounts(data, countKey);
       const { entries, othersGroupSize } = getTopNCounts(counts, TOP_N_COMPANIES);
       const labels = entries.map(([name]) => name);
       const values = entries.map(([, count]) => count);
 
       if (canvasId === 'todayChart' && todayChartInstance) todayChartInstance.destroy();
+      if (canvasId === 'todayNationalityChart' && todayNationalityChartInstance) todayNationalityChartInstance.destroy();
       if (canvasId === 'overviewChart' && overviewChartInstance) overviewChartInstance.destroy();
+      if (canvasId === 'overviewNationalityChart' && overviewNationalityChartInstance) overviewNationalityChartInstance.destroy();
 
       if (!window.Chart) {
         noteEl.textContent = 'Chart library failed to load. Lists are still available.';
@@ -1111,7 +1149,7 @@
       );
 
       noteEl.textContent = othersGroupSize > 0
-        ? `Showing top ${TOP_N_COMPANIES} companies by count. "Others" groups the remaining ${othersGroupSize} companies. Full breakdown is in the list/table below.`
+        ? `Showing top ${TOP_N_COMPANIES} ${groupName} by count. "Others" groups the remaining ${othersGroupSize} ${groupName}. Full breakdown is in the list/table below.`
         : '';
 
       const ctx = canvas.getContext('2d');
@@ -1136,7 +1174,9 @@
       });
 
       if (canvasId === 'todayChart') todayChartInstance = chart;
+      if (canvasId === 'todayNationalityChart') todayNationalityChartInstance = chart;
       if (canvasId === 'overviewChart') overviewChartInstance = chart;
+      if (canvasId === 'overviewNationalityChart') overviewNationalityChartInstance = chart;
       return chart;
     }
 
@@ -1146,14 +1186,16 @@
         showCancel: true,
         emptyText: 'No workers scheduled for today.'
       });
-      drawChart('todayChart', els.todayChartNote, 'doughnut', todayData, 'Today workers');
+      drawChart('todayChart', els.todayChartNote, 'doughnut', todayData, 'Today workers by company', 'company', 'companies');
+      drawChart('todayNationalityChart', els.todayNationalityChartNote, 'bar', todayData, 'Today workers by nationality', 'nationality', 'nationalities');
     }
 
     function renderOverviewView() {
       const filteredData = getFilteredOverviewData();
       updateKpis(filteredData);
       renderTable(els.overviewDashboard, filteredData);
-      drawChart('overviewChart', els.overviewChartNote, 'bar', filteredData, 'Scheduled Workers');
+      drawChart('overviewChart', els.overviewChartNote, 'bar', filteredData, 'Scheduled workers by company', 'company', 'companies');
+      drawChart('overviewNationalityChart', els.overviewNationalityChartNote, 'bar', filteredData, 'Scheduled workers by nationality', 'nationality', 'nationalities');
     }
 
     function renderAll() {
@@ -1243,7 +1285,9 @@
 
         requestAnimationFrame(() => {
           todayChartInstance?.resize();
+          todayNationalityChartInstance?.resize();
           overviewChartInstance?.resize();
+          overviewNationalityChartInstance?.resize();
         });
       });
     });
@@ -1264,7 +1308,12 @@
           overviewChartInstance.destroy();
           overviewChartInstance = null;
         }
+        if (overviewNationalityChartInstance) {
+          overviewNationalityChartInstance.destroy();
+          overviewNationalityChartInstance = null;
+        }
         els.overviewChartNote.textContent = 'Search accepts digits only and must be exactly 4 digits.';
+        els.overviewNationalityChartNote.textContent = 'Search accepts digits only and must be exactly 4 digits.';
         return;
       }
 
