@@ -479,9 +479,14 @@
       opacity: 1;
     }
 
-    /* Same-page print report: hidden on screen, shown only when printing */
+    /* Same-page print report: kept off-screen (not display:none) so chart images print reliably */
     #print-report-root {
-      display: none;
+      position: absolute;
+      left: -10000px;
+      top: 0;
+      width: 900px;
+      pointer-events: none;
+      visibility: hidden;
     }
 
     @media print {
@@ -499,10 +504,14 @@
       }
 
       body.printing-report #print-report-root {
-        display: block !important;
-        width: 100%;
+        position: static !important;
+        left: auto !important;
+        top: auto !important;
+        width: 100% !important;
         margin: 0;
         padding: 0;
+        visibility: visible !important;
+        pointer-events: auto;
         color: #111827;
         font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
       }
@@ -520,9 +529,10 @@
 
       #print-report-root .print-summary {
         display: grid;
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: 1fr;
         gap: 8px;
         margin-bottom: 14px;
+        max-width: 240px;
       }
 
       #print-report-root .print-summary-card {
@@ -541,7 +551,7 @@
 
       #print-report-root .print-summary-card .value {
         margin-top: 4px;
-        font-size: 18px;
+        font-size: 22px;
         font-weight: 800;
       }
 
@@ -568,6 +578,8 @@
       #print-report-root .print-chart-box img {
         max-width: 100%;
         height: auto;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
       }
 
       #print-report-root table {
@@ -1174,40 +1186,115 @@
       return 'All dates';
     }
 
-    function buildPrintChartImage(data, countKey, chartType, label) {
+    function buildPrintChartImage(data, countKey, chartType) {
       const counts = getCounts(data, countKey);
       const { entries } = getTopNCounts(counts, TOP_N_COMPANIES);
-      if (!entries.length || !window.Chart) return '';
+      if (!entries.length) return '';
 
+      const width = 640;
+      const height = 360;
       const canvas = document.createElement('canvas');
-      canvas.width = 640;
-      canvas.height = 320;
-      const chart = new Chart(canvas.getContext('2d'), {
-        type: chartType,
-        data: {
-          labels: entries.map(([name]) => name),
-          datasets: [{
-            label,
-            data: entries.map(([, count]) => count),
-            backgroundColor: entries.map((entry, i) =>
-              entry[0] === OTHERS_LABEL ? '#94a3b8' : chartColors[i % chartColors.length]
-            ),
-            borderRadius: chartType === 'bar' ? 8 : 0,
-            borderWidth: 0
-          }]
-        },
-        options: {
-          animation: false,
-          responsive: false,
-          maintainAspectRatio: false,
-          plugins: { legend: { position: 'bottom' } },
-          scales: chartType === 'bar' ? { y: { beginAtZero: true, ticks: { precision: 0 } } } : undefined
-        }
-      });
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return '';
 
-      const image = canvas.toDataURL('image/png');
-      chart.destroy();
-      return image;
+      // Pure canvas drawing — more reliable for print than off-screen Chart.js.
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, width, height);
+
+      const labels = entries.map(([name]) => name);
+      const values = entries.map(([, count]) => count);
+      const colors = entries.map((entry, i) =>
+        entry[0] === OTHERS_LABEL ? '#94a3b8' : chartColors[i % chartColors.length]
+      );
+      const total = values.reduce((sum, value) => sum + value, 0) || 1;
+
+      if (chartType === 'doughnut') {
+        const cx = 210;
+        const cy = 165;
+        const radius = 110;
+        const inner = 58;
+        let start = -Math.PI / 2;
+
+        values.forEach((value, index) => {
+          const angle = (value / total) * Math.PI * 2;
+          ctx.beginPath();
+          ctx.moveTo(cx, cy);
+          ctx.arc(cx, cy, radius, start, start + angle);
+          ctx.closePath();
+          ctx.fillStyle = colors[index];
+          ctx.fill();
+          start += angle;
+        });
+
+        ctx.beginPath();
+        ctx.arc(cx, cy, inner, 0, Math.PI * 2);
+        ctx.fillStyle = '#ffffff';
+        ctx.fill();
+
+        ctx.fillStyle = '#111827';
+        ctx.font = 'bold 28px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(String(total), cx, cy - 8);
+        ctx.font = '12px sans-serif';
+        ctx.fillStyle = '#64748b';
+        ctx.fillText('Total', cx, cy + 16);
+
+        let legendY = 36;
+        labels.forEach((label, index) => {
+          ctx.fillStyle = colors[index];
+          ctx.fillRect(400, legendY, 14, 14);
+          ctx.fillStyle = '#111827';
+          ctx.font = '13px sans-serif';
+          ctx.textAlign = 'left';
+          ctx.textBaseline = 'top';
+          const text = `${label} (${values[index]})`;
+          ctx.fillText(text.length > 28 ? `${text.slice(0, 27)}…` : text, 422, legendY);
+          legendY += 24;
+        });
+      } else {
+        const left = 50;
+        const top = 24;
+        const chartWidth = width - left - 24;
+        const chartHeight = height - top - 70;
+        const maxValue = Math.max(...values, 1);
+        const barGap = 12;
+        const barWidth = Math.max(18, (chartWidth - barGap * (values.length + 1)) / values.length);
+
+        ctx.strokeStyle = '#e2e8f0';
+        ctx.beginPath();
+        ctx.moveTo(left, top);
+        ctx.lineTo(left, top + chartHeight);
+        ctx.lineTo(left + chartWidth, top + chartHeight);
+        ctx.stroke();
+
+        values.forEach((value, index) => {
+          const barHeight = (value / maxValue) * (chartHeight - 8);
+          const x = left + barGap + index * (barWidth + barGap);
+          const y = top + chartHeight - barHeight;
+          ctx.fillStyle = colors[index];
+          ctx.fillRect(x, y, barWidth, barHeight);
+
+          ctx.fillStyle = '#111827';
+          ctx.font = 'bold 12px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText(String(value), x + barWidth / 2, y - 6);
+
+          ctx.save();
+          ctx.translate(x + barWidth / 2, top + chartHeight + 10);
+          ctx.rotate(-Math.PI / 4);
+          ctx.font = '11px sans-serif';
+          ctx.textAlign = 'right';
+          ctx.fillStyle = '#334155';
+          const label = labels[index].length > 14 ? `${labels[index].slice(0, 13)}…` : labels[index];
+          ctx.fillText(label, 0, 0);
+          ctx.restore();
+        });
+      }
+
+      return canvas.toDataURL('image/png');
     }
 
     function escapeHtml(value) {
@@ -1253,9 +1340,6 @@
       const companyImage = buildPrintChartImage(filteredData, 'company', 'doughnut', 'Workers by company');
       const nationalityImage = buildPrintChartImage(filteredData, 'nationality', 'bar', 'Workers by nationality');
       const printedAt = new Date().toLocaleString();
-      const companyFilter = els.filterCompany.value === 'All' ? 'All companies' : els.filterCompany.value;
-      const blockFilter = els.filterBlock.value === 'All' ? 'All blocks' : els.filterBlock.value;
-      const searchFilter = searchDigits.length === 4 ? searchDigits : 'None';
 
       const rowsHtml = filteredData.map((worker, index) => `
         <tr>
@@ -1273,9 +1357,6 @@
         <div class="print-meta">Printed ${escapeHtml(printedAt)} · Date range: ${escapeHtml(getActiveDateRangeLabel())}</div>
         <div class="print-summary">
           <div class="print-summary-card"><div class="label">Total Workers</div><div class="value">${filteredData.length}</div></div>
-          <div class="print-summary-card"><div class="label">Company Filter</div><div class="value" style="font-size:14px">${escapeHtml(companyFilter)}</div></div>
-          <div class="print-summary-card"><div class="label">Block Filter</div><div class="value" style="font-size:14px">${escapeHtml(blockFilter)}</div></div>
-          <div class="print-summary-card"><div class="label">IC Search</div><div class="value" style="font-size:14px">${escapeHtml(searchFilter)}</div></div>
         </div>
         <div class="print-charts">
           <div class="print-chart-box">
