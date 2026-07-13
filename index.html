@@ -737,12 +737,15 @@
       const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(str);
       if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
 
-      const slash = /^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/.exec(str);
+      const slash = /^(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})$/.exec(str);
       if (slash) {
-        // Sheet is now dd/mm/yyyy — parse strictly, no guessing.
+        // Sheet is dd/mm/yyyy or dd/mm/yy — parse strictly, no guessing.
         const day = Number(slash[1]);
         const month = Number(slash[2]);
-        const year = Number(slash[3]);
+        let year = Number(slash[3]);
+        if (slash[3].length === 2) {
+          year += year < 70 ? 2000 : 1900; // 2-digit year window
+        }
         if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
           return `${year}-${pad2(month)}-${pad2(day)}`;
         }
