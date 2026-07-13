@@ -954,7 +954,7 @@ function bootstrapSafety(html) {
       'splitDisplayName:function(name){var parts=String(name||"").split("/");return {main:(parts[0]||"").trim(),zh:(parts[1]||"").trim()};}' +
       '};' +
       '(function(){' +
-      'var REMOTE="https://safety-inventory.vercel.app/api/sync";' +
+      'var REMOTE=(location.origin&&location.origin.indexOf("http")===0)?(location.origin+"/api/sync"):"https://induction-dahsboard.vercel.app/api/sync";' +
       'var KEY="lm_safety_inventory_sync_v1";' +
       'var origFetch=window.fetch.bind(window);' +
       'function readLocal(){try{var raw=localStorage.getItem(KEY);return raw?JSON.parse(raw):null;}catch(e){return null;}}' +
