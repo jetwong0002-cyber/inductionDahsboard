@@ -657,11 +657,18 @@
   };
 
   const SESSION_KEY = "lm_combined_dashboard_session_v1";
+  const INDUCTION_PRELOAD_KEY = "lm_combined_induction_preload_v1";
+  const INDUCTION_CACHE_KEY = "lm_induction_cache_v1";
+  const INDUCTION_API_URL = "https://script.google.com/macros/s/AKfycbwyQJz65V7G7MGPqoDQH_30N9DmqrLtchF8Z98SFkUIi5TCMWzv77bkB-pyj-RZIPJ5RQ/exec";
+  const INDUCTION_API_KEY = "bdd821cd7f8e4ab4be6eae00aacb8dc3";
+  const INDUCTION_CACHE_MAX_AGE_MS = 30 * 60 * 1000;
+
   const ADMIN_USERS = ["jet", "shamil"];
   const VISITOR_USERS = ["camilia", "camilla"];
   const WORKER_USERS = ["worker"];
 
   let session = null;
+  let inductionPreloadPromise = null;
 
   const els = {
     login: document.getElementById("login"),
@@ -720,6 +727,11 @@
     localStorage.setItem(SESSION_KEY, JSON.stringify(nextSession));
   }
 
+  function updateSession(patch) {
+    if (!session) return;
+    saveSession(Object.assign({}, session, patch));
+  }
+
   function loadSession() {
     try {
       const raw = localStorage.getItem(SESSION_KEY);
@@ -751,12 +763,66 @@
     return "Worker";
   }
 
+  function readInductionPreload() {
+    try {
+      const raw = localStorage.getItem(INDUCTION_PRELOAD_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!parsed || parsed.payload === undefined || !parsed.ts) return null;
+      if (Date.now() - parsed.ts > INDUCTION_CACHE_MAX_AGE_MS) return null;
+      return parsed;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function writeInductionPreload(payload) {
+    const record = { payload: payload, ts: Date.now() };
+    try {
+      localStorage.setItem(INDUCTION_PRELOAD_KEY, JSON.stringify(record));
+    } catch (_) {
+      /* ignore quota */
+    }
+    return record;
+  }
+
+  function buildInductionApiUrl() {
+    return INDUCTION_API_URL + "?key=" + encodeURIComponent(INDUCTION_API_KEY) + "&_=" + Date.now();
+  }
+
+  function preloadInductionData(force) {
+    if (session && session.role === "worker") return Promise.resolve(null);
+    const existing = readInductionPreload();
+    if (!force && existing) return Promise.resolve(existing);
+    if (inductionPreloadPromise) return inductionPreloadPromise;
+
+    inductionPreloadPromise = fetch(buildInductionApiUrl(), { cache: "no-store" })
+      .then(function (response) {
+        if (!response.ok) throw new Error("HTTP " + response.status);
+        return response.json();
+      })
+      .then(function (payload) {
+        return writeInductionPreload(payload);
+      })
+      .catch(function (error) {
+        console.warn("Induction preload failed", error);
+        return readInductionPreload();
+      })
+      .finally(function () {
+        inductionPreloadPromise = null;
+      });
+
+    return inductionPreloadPromise;
+  }
+
   function enterChooser() {
+    updateSession({ dashboard: null });
     els.welcomeTitle.textContent = "Welcome, " + session.name;
     els.welcomeSubtitle.textContent = roleLabel(session.role) + " access";
     els.inductionNote.textContent = session.role === "admin" ? "Edit access" : "View only";
     els.safetyNote.textContent = session.role === "visitor" ? "View only" : "Edit access";
     showOnly("chooser");
+    preloadInductionData(false);
   }
 
   function replaceRequired(source, target, replacement, label) {
@@ -795,13 +861,18 @@
       active: true,
       ts: Date.now()
     };
+    const preload = readInductionPreload();
+    const cacheWrite = preload
+      ? "localStorage.setItem(" + JSON.stringify(INDUCTION_CACHE_KEY) + "," + JSON.stringify(JSON.stringify(preload)) + ");"
+      : "";
     const injection = '<script>try{localStorage.setItem("lm_induction_auth_v1",' +
       JSON.stringify(JSON.stringify(auth)) +
-      ');document.documentElement.classList.add("authed");}catch(_){}</scr' + 'ipt>';
+      ');' + cacheWrite +
+      'document.documentElement.classList.add("authed");}catch(_){}</scr' + 'ipt>';
     return replaceRequired(prepared, "<head>", "<head>" + injection, "Induction auth");
   }
 
-  function bootstrapSafety(html) {
+function bootstrapSafety(html) {
     const canEdit = session.role === "admin" || session.role === "worker";
     const patched = replaceRequired(
       replaceRequired(
@@ -829,17 +900,21 @@
     return replaceRequired(patched, "<head>", "<head>" + fallbackLibs, "Safety bootstrap");
   }
 
-  function openDashboard(kind) {
+  async function openDashboard(kind) {
     if (!session) return;
     if (session.role === "worker" && kind !== "safety") kind = "safety";
 
     try {
+      if (kind === "induction") {
+        await preloadInductionData(false);
+      }
       const source = decodeHtml(DASHBOARDS[kind]);
       const prepared = kind === "induction" ? bootstrapInduction(source) : bootstrapSafety(source);
       els.frameTitle.textContent = (kind === "induction" ? "Induction Dashboard" : "Safety Store Dashboard") +
         " - " + session.name + " (" + roleLabel(session.role) + ")";
       els.backBtn.classList.toggle("hidden", session.role === "worker");
       els.frame.srcdoc = prepared;
+      updateSession({ dashboard: kind });
       showOnly("frame");
     } catch (error) {
       els.error.textContent = error.message || "Could not open dashboard.";
@@ -871,9 +946,13 @@
       els.error.classList.add("show");
       return;
     }
-    saveSession({ name: titleCaseName(rawName), role, ts: Date.now() });
-    if (role === "worker") openDashboard("safety");
-    else enterChooser();
+    saveSession({ name: titleCaseName(rawName), role, dashboard: null, ts: Date.now() });
+    if (role === "worker") {
+      openDashboard("safety");
+    } else {
+      preloadInductionData(true);
+      enterChooser();
+    }
   });
 
   document.querySelectorAll("[data-dashboard]").forEach(button => {
@@ -886,8 +965,14 @@
 
   session = loadSession();
   if (session) {
-    if (session.role === "worker") openDashboard("safety");
-    else enterChooser();
+    if (session.role === "worker") {
+      openDashboard("safety");
+    } else if (session.dashboard === "induction" || session.dashboard === "safety") {
+      preloadInductionData(false);
+      openDashboard(session.dashboard);
+    } else {
+      enterChooser();
+    }
   } else {
     showOnly("login");
   }
