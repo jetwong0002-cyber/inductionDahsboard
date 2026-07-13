@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Longmotive Induction</title>
+  <title>LONGMOTIVE Induction</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
@@ -915,6 +915,9 @@
 
     /* ---------- Login / username gate ---------- */
     #login-gate {
+      --mx: 50%;
+      --my: 42%;
+      --drop: 150px;
       position: fixed;
       inset: 0;
       z-index: 999;
@@ -922,49 +925,126 @@
       align-items: center;
       justify-content: center;
       padding: 20px;
-      background:
-        radial-gradient(ellipse 70% 55% at 15% 20%, rgba(37, 99, 235, 0.4), transparent 55%),
-        radial-gradient(ellipse 55% 45% at 90% 80%, rgba(59, 130, 246, 0.3), transparent 50%),
-        linear-gradient(145deg, #0f172a 0%, #1e3a8a 55%, #2563eb 100%);
+      background: linear-gradient(145deg, #0b1f3a 0%, #1e3a8a 55%, #1d4ed8 100%);
       overflow: hidden;
     }
 
-    #login-gate::before {
-      content: "";
+    .login-bg {
       position: absolute;
       inset: 0;
-      background-image:
-        linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
-      background-size: 48px 48px;
-      mask-image: radial-gradient(ellipse at center, black 20%, transparent 75%);
+      z-index: 0;
       pointer-events: none;
-      animation: gridDrift 28s linear infinite;
+      overflow: hidden;
+      background: #e8f1fb;
     }
 
-    @keyframes gridDrift {
-      from { transform: translate(0, 0); }
-      to { transform: translate(48px, 48px); }
+    .login-bg-layer {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 4vw;
+    }
+
+    .login-bg-layer svg {
+      width: min(92vw, 1080px);
+      height: auto;
+      max-height: 78vh;
+      display: block;
+      flex-shrink: 0;
+    }
+
+    .login-bg-sharp {
+      opacity: 1;
+      z-index: 1;
+    }
+
+    .login-bg-blur {
+      opacity: 1;
+      z-index: 2;
+      filter: blur(28px) saturate(0.95);
+      transform: scale(1.08);
+      -webkit-mask-image: radial-gradient(
+        circle var(--drop) at var(--mx) var(--my),
+        transparent 0%,
+        transparent 26%,
+        rgba(0, 0, 0, 0.5) 55%,
+        #000 76%
+      );
+      mask-image: radial-gradient(
+        circle var(--drop) at var(--mx) var(--my),
+        transparent 0%,
+        transparent 26%,
+        rgba(0, 0, 0, 0.5) 55%,
+        #000 76%
+      );
+    }
+
+    .login-bg-veil {
+      position: absolute;
+      inset: 0;
+      z-index: 3;
+      background:
+        radial-gradient(ellipse 70% 55% at 15% 20%, rgba(37, 99, 235, 0.22), transparent 55%),
+        radial-gradient(ellipse 55% 45% at 90% 80%, rgba(29, 78, 216, 0.2), transparent 50%),
+        linear-gradient(145deg, rgba(15, 23, 42, 0.42) 0%, rgba(30, 58, 138, 0.38) 48%, rgba(37, 99, 235, 0.34) 100%);
+      -webkit-mask-image: radial-gradient(
+        circle calc(var(--drop) + 10px) at var(--mx) var(--my),
+        transparent 0%,
+        transparent 30%,
+        rgba(0, 0, 0, 0.55) 60%,
+        #000 80%
+      );
+      mask-image: radial-gradient(
+        circle calc(var(--drop) + 10px) at var(--mx) var(--my),
+        transparent 0%,
+        transparent 30%,
+        rgba(0, 0, 0, 0.55) 60%,
+        #000 80%
+      );
+    }
+
+    .login-drop {
+      position: absolute;
+      width: calc(var(--drop) * 1.15);
+      height: calc(var(--drop) * 1.15);
+      left: var(--mx);
+      top: var(--my);
+      transform: translate(-50%, -50%);
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 4;
+      box-shadow:
+        inset 0 0 24px rgba(255, 255, 255, 0.4),
+        inset 0 -10px 28px rgba(37, 99, 235, 0.18),
+        0 0 0 1px rgba(255, 255, 255, 0.35),
+        0 12px 40px rgba(15, 23, 42, 0.22);
+      background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.32), transparent 42%);
+      mix-blend-mode: soft-light;
+      opacity: 0.95;
+      transition: width 0.2s ease, height 0.2s ease, opacity 0.2s ease;
     }
 
     .login-card {
       width: min(420px, 100%);
-      background: rgba(255, 255, 255, 0.08);
-      backdrop-filter: blur(22px);
-      border: 1px solid rgba(255, 255, 255, 0.16);
+      background: rgba(15, 23, 42, 0.42);
+      backdrop-filter: blur(18px) saturate(1.15);
+      border: 1px solid rgba(255, 255, 255, 0.18);
       border-radius: 28px;
       box-shadow: 0 36px 80px rgba(2, 6, 23, 0.45);
       padding: 36px 32px 30px;
       color: #fff;
       position: relative;
-      z-index: 1;
+      z-index: 2;
       animation: loginIn 0.6s var(--ease-spring) both;
-      transition: transform 0.25s var(--ease-spring), box-shadow 0.25s ease;
+      transition: transform 0.25s var(--ease-spring), box-shadow 0.25s ease, background 0.25s ease;
     }
 
     .login-card:hover {
       transform: translateY(-2px);
       box-shadow: 0 40px 90px rgba(2, 6, 23, 0.5);
+      background: rgba(15, 23, 42, 0.5);
     }
 
     @keyframes loginIn {
@@ -980,32 +1060,33 @@
     }
 
     .login-logo {
-      width: 48px;
-      height: 48px;
+      width: 52px;
+      height: 52px;
       border-radius: 14px;
-      background: linear-gradient(145deg, rgba(96, 165, 250, 0.45), rgba(37, 99, 235, 0.55));
-      border: 1px solid rgba(147, 197, 253, 0.4);
+      background: #ffffff;
+      border: 1px solid rgba(255, 255, 255, 0.55);
       display: flex;
       align-items: center;
       justify-content: center;
-      font-family: var(--font-display);
-      font-weight: 700;
-      font-size: 16px;
-      letter-spacing: -0.02em;
-      box-shadow: 0 8px 24px rgba(37, 99, 235, 0.35);
-      transition: transform 0.25s var(--ease-spring);
+      overflow: hidden;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.28);
+      flex-shrink: 0;
+      padding: 7px;
     }
 
-    .login-card:hover .login-logo {
-      transform: rotate(-4deg) scale(1.05);
+    .login-logo svg {
+      width: 100%;
+      height: 100%;
+      display: block;
     }
 
     .login-brand-text h2 {
       margin: 0;
       font-family: var(--font-display);
       font-size: 22px;
-      letter-spacing: -0.03em;
+      letter-spacing: 0.08em;
       font-weight: 700;
+      text-transform: uppercase;
     }
 
     .login-brand-text p {
@@ -1013,6 +1094,39 @@
       font-size: 12px;
       color: #93c5fd;
       letter-spacing: 0.04em;
+    }
+
+    .login-mode {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 18px;
+      padding: 5px;
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+    }
+
+    .login-mode-btn {
+      border: 0;
+      background: transparent;
+      color: #bfdbfe;
+      padding: 11px 12px;
+      border-radius: 10px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: 0.18s ease;
+    }
+
+    .login-mode-btn.active {
+      background: #fff;
+      color: #1d4ed8;
+      box-shadow: 0 8px 18px rgba(15, 23, 42, 0.18);
+    }
+
+    .login-mode-btn:hover:not(.active) {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
     }
 
     .login-card h1 {
@@ -1158,15 +1272,104 @@
       text-align: center;
       line-height: 1.45;
     }
+    @media (prefers-reduced-motion: reduce) {
+      .login-bg-blur,
+      .login-bg-veil {
+        -webkit-mask-image: none;
+        mask-image: none;
+        filter: blur(18px);
+      }
+      .login-drop { display: none; }
+      .login-card { animation: none; }
+    }
+
+    @media (max-width: 560px) {
+      #login-gate { --drop: 110px; }
+      .login-bg-layer svg { width: min(140vw, 720px); }
+    }
+
+    /* Avoid login flash when restoring a saved session */
+    html.authed #login-gate { display: none !important; }
+    html.authed .app-shell.hidden { display: block !important; }
   </style>
+  <script>
+    try {
+      var _raw = localStorage.getItem('lm_induction_auth_v1');
+      if (!_raw) {
+        // migrate older session keys if present
+        var _oldUser = localStorage.getItem('lm_induction_username') || '';
+        var _oldSession = localStorage.getItem('lm_induction_session');
+        if (_oldSession === '1' && _oldUser) {
+          _raw = JSON.stringify({
+            name: _oldUser,
+            role: (_oldUser.toLowerCase() === 'jet' || _oldUser.toLowerCase() === 'shamil') ? 'admin' : 'visitor',
+            active: true
+          });
+          localStorage.setItem('lm_induction_auth_v1', _raw);
+        }
+      }
+      var _auth = _raw ? JSON.parse(_raw) : null;
+      if (_auth && _auth.active && _auth.name && (_auth.role === 'admin' || _auth.role === 'visitor')) {
+        document.documentElement.classList.add('authed');
+      }
+    } catch (e) {}
+  </script>
 </head>
 <body>
   <div id="login-gate">
+    <div class="login-bg" aria-hidden="true">
+      <div class="login-bg-layer login-bg-sharp">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" aria-hidden="true">
+          <rect width="1600" height="900" fill="#f4f8fc"/>
+          <circle cx="220" cy="180" r="160" fill="#dbeafe" opacity="0.7"/>
+          <circle cx="1380" cy="720" r="220" fill="#bfdbfe" opacity="0.55"/>
+          <circle cx="1280" cy="160" r="120" fill="#93c5fd" opacity="0.28"/>
+          <g transform="translate(430,270)">
+            <path d="M0 0 V180 H180 V144 H48 V0 Z" fill="#0B3D82"/>
+            <rect x="70" y="42" width="28" height="88" rx="4" fill="#5BB6F0"/>
+            <rect x="108" y="24" width="28" height="106" rx="4" fill="#5BB6F0"/>
+            <rect x="146" y="52" width="28" height="78" rx="4" fill="#5BB6F0"/>
+            <g fill="#0B3D82" font-family="Arial Black, Arial, Helvetica, sans-serif" font-weight="900" letter-spacing="4">
+              <text x="220" y="88" font-size="78">LONG</text>
+              <text x="220" y="168" font-size="78">MOTIVE</text>
+            </g>
+          </g>
+        </svg>
+      </div>
+      <div class="login-bg-layer login-bg-blur">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" aria-hidden="true">
+          <rect width="1600" height="900" fill="#f4f8fc"/>
+          <circle cx="220" cy="180" r="160" fill="#dbeafe" opacity="0.7"/>
+          <circle cx="1380" cy="720" r="220" fill="#bfdbfe" opacity="0.55"/>
+          <circle cx="1280" cy="160" r="120" fill="#93c5fd" opacity="0.28"/>
+          <g transform="translate(430,270)">
+            <path d="M0 0 V180 H180 V144 H48 V0 Z" fill="#0B3D82"/>
+            <rect x="70" y="42" width="28" height="88" rx="4" fill="#5BB6F0"/>
+            <rect x="108" y="24" width="28" height="106" rx="4" fill="#5BB6F0"/>
+            <rect x="146" y="52" width="28" height="78" rx="4" fill="#5BB6F0"/>
+            <g fill="#0B3D82" font-family="Arial Black, Arial, Helvetica, sans-serif" font-weight="900" letter-spacing="4">
+              <text x="220" y="88" font-size="78">LONG</text>
+              <text x="220" y="168" font-size="78">MOTIVE</text>
+            </g>
+          </g>
+        </svg>
+      </div>
+      <div class="login-bg-veil"></div>
+      <div class="login-drop" id="login-drop"></div>
+    </div>
+
     <div class="login-card">
       <div class="login-brand">
-        <div class="login-logo">LM</div>
+        <div class="login-logo">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="38" height="38" aria-hidden="true">
+            <path d="M8 8 V92 H92 V72 H28 V8 Z" fill="#0B3D82"/>
+            <rect x="40" y="28" width="14" height="40" rx="2.5" fill="#5BB6F0"/>
+            <rect x="58" y="18" width="14" height="50" rx="2.5" fill="#5BB6F0"/>
+            <rect x="76" y="32" width="14" height="36" rx="2.5" fill="#5BB6F0"/>
+          </svg>
+        </div>
         <div class="login-brand-text">
-          <h2>Longmotive</h2>
+          <h2>LONGMOTIVE</h2>
           <p>Induction access</p>
         </div>
       </div>
@@ -1175,9 +1378,14 @@
       <p class="login-sub">Enter your username to open today’s induction dashboard. Data loads in the background while you sign in.</p>
 
       <form id="login-form" autocomplete="off">
+        <div class="login-mode" role="tablist" aria-label="Access type">
+          <button type="button" class="login-mode-btn active" data-mode="admin" id="mode-admin-btn">Admin</button>
+          <button type="button" class="login-mode-btn" data-mode="visitor" id="mode-visitor-btn">Visitor</button>
+        </div>
+
         <div class="login-field">
-          <label for="login-name">Username</label>
-          <input type="text" id="login-name" name="login-name" placeholder="Your username" required autofocus />
+          <label for="login-name" id="login-name-label">Admin username</label>
+          <input type="text" id="login-name" name="login-name" placeholder="Jet or Shamil" required autofocus />
         </div>
 
         <p id="login-error" class="login-error" role="alert" aria-live="assertive"></p>
@@ -1190,14 +1398,14 @@
         <button type="submit" class="btn login-submit" id="login-submit-btn">Continue</button>
       </form>
 
-      <p class="login-footnote">Access is limited to authorized usernames. Your username is saved on this device for next time.</p>
+      <p class="login-footnote" id="login-footnote">Admins: Jet or Shamil. Visitors: enter any name to view workers (no cancel). You stay signed in until Sign out.</p>
     </div>
   </div>
 
   <main class="app-shell hidden">
     <section class="hero">
       <div>
-        <h1>Longmotive</h1>
+        <h1>LONGMOTIVE</h1>
         <p>Induction command center — today’s workers, schedules, and cancellation control.</p>
       </div>
       <div class="hero-actions">
@@ -1368,8 +1576,14 @@
   <script>
     const API_URL = "https://script.google.com/macros/s/AKfycbwyQJz65V7G7MGPqoDQH_30N9DmqrLtchF8Z98SFkUIi5TCMWzv77bkB-pyj-RZIPJ5RQ/exec";
     const API_KEY = "bdd821cd7f8e4ab4be6eae00aacb8dc3";
-    const USER_STORAGE_KEY = "lm_induction_username";
-    const ALLOWED_USERS = ["jet", "shamil"];
+    const AUTH_STORAGE_KEY = "lm_induction_auth_v1";
+    const USER_STORAGE_KEY = "lm_induction_username"; // legacy
+    const SESSION_STORAGE_KEY = "lm_induction_session"; // legacy
+    const ADMIN_USERS = ["jet", "shamil"];
+    const AUTH_COOKIE = "lm_induction_auth";
+
+    let currentUser = { name: "", role: "" }; // role: 'admin' | 'visitor'
+    let selectedLoginMode = "admin";
 
     function buildApiUrl() {
       return `${API_URL}?key=${encodeURIComponent(API_KEY)}&_=${Date.now()}`;
@@ -1379,32 +1593,123 @@
       return String(value || "").trim().toLowerCase();
     }
 
-    function isAllowedUser(value) {
-      return ALLOWED_USERS.includes(normalizeUsername(value));
+    function isAdminUser(value) {
+      return ADMIN_USERS.includes(normalizeUsername(value));
     }
 
-    function readStoredUsername() {
+    function canCancelWorkers() {
+      return currentUser.role === "admin" && isAdminUser(currentUser.name);
+    }
+
+    function canonicalDisplayName(value, role) {
+      const normalized = normalizeUsername(value);
+      if (role === "admin") {
+        const canonical = ADMIN_USERS.find(u => u === normalized);
+        return canonical ? canonical.charAt(0).toUpperCase() + canonical.slice(1) : String(value || "").trim();
+      }
+      return String(value || "").trim().replace(/\s+/g, " ");
+    }
+
+    function writeCookie(value) {
       try {
-        return localStorage.getItem(USER_STORAGE_KEY) || "";
+        const maxAge = 60 * 60 * 24 * 180; // 180 days
+        document.cookie = `${AUTH_COOKIE}=${encodeURIComponent(value)}; path=/; max-age=${maxAge}; SameSite=Lax`;
+      } catch (_) {
+        /* ignore */
+      }
+    }
+
+    function readCookie() {
+      try {
+        const match = document.cookie.match(new RegExp(`(?:^|; )${AUTH_COOKIE}=([^;]*)`));
+        return match ? decodeURIComponent(match[1]) : "";
       } catch (_) {
         return "";
       }
     }
 
-    function storeUsername(name) {
+    function clearCookie() {
       try {
-        localStorage.setItem(USER_STORAGE_KEY, name);
-      } catch (_) {
-        /* ignore quota / private mode */
-      }
-    }
-
-    function clearStoredUsername() {
-      try {
-        localStorage.removeItem(USER_STORAGE_KEY);
+        document.cookie = `${AUTH_COOKIE}=; path=/; max-age=0; SameSite=Lax`;
       } catch (_) {
         /* ignore */
       }
+    }
+
+    function readAuthRecord() {
+      try {
+        const raw = localStorage.getItem(AUTH_STORAGE_KEY) || readCookie();
+        if (!raw) {
+          // migrate legacy keys once
+          const oldUser = localStorage.getItem(USER_STORAGE_KEY) || "";
+          const oldSession = localStorage.getItem(SESSION_STORAGE_KEY);
+          if (oldSession === "1" && oldUser) {
+            return {
+              name: oldUser,
+              role: isAdminUser(oldUser) ? "admin" : "visitor",
+              active: true
+            };
+          }
+          return null;
+        }
+        const parsed = JSON.parse(raw);
+        if (!parsed || !parsed.name || !parsed.active) return null;
+        if (parsed.role !== "admin" && parsed.role !== "visitor") return null;
+        if (parsed.role === "admin" && !isAdminUser(parsed.name)) return null;
+        return parsed;
+      } catch (_) {
+        return null;
+      }
+    }
+
+    function writeAuthRecord(record) {
+      const payload = JSON.stringify(record);
+      try {
+        localStorage.setItem(AUTH_STORAGE_KEY, payload);
+        // keep legacy username for older early-boot paths
+        localStorage.setItem(USER_STORAGE_KEY, record.name);
+        localStorage.setItem(SESSION_STORAGE_KEY, record.active ? "1" : "0");
+      } catch (_) {
+        /* ignore private mode */
+      }
+      writeCookie(payload);
+    }
+
+    function clearAuthRecord() {
+      try {
+        localStorage.removeItem(AUTH_STORAGE_KEY);
+        localStorage.removeItem(USER_STORAGE_KEY);
+        localStorage.removeItem(SESSION_STORAGE_KEY);
+      } catch (_) {
+        /* ignore */
+      }
+      clearCookie();
+    }
+
+    function hasActiveSession() {
+      return Boolean(readAuthRecord());
+    }
+
+    function startSession(displayName, role) {
+      currentUser = { name: displayName, role };
+      writeAuthRecord({ name: displayName, role, active: true, ts: Date.now() });
+      document.documentElement.classList.add("authed");
+    }
+
+    function endSession() {
+      currentUser = { name: "", role: "" };
+      clearAuthRecord();
+      document.documentElement.classList.remove("authed");
+    }
+
+    function restoreSessionIfAny() {
+      const auth = readAuthRecord();
+      if (!auth) return false;
+      currentUser = { name: auth.name, role: auth.role };
+      // refresh storage so cookie + localStorage stay in sync
+      writeAuthRecord({ ...auth, active: true, ts: Date.now() });
+      enterDashboard(auth.name);
+      return true;
     }
 
     let globalData = [];
@@ -1452,8 +1757,47 @@
       loginPreloadStatus: document.getElementById('login-preload-status'),
       loginPreloadText: document.getElementById('login-preload-text'),
       loginSubmitBtn: document.getElementById('login-submit-btn'),
-      logoutBtn: document.getElementById('logout-btn')
+      logoutBtn: document.getElementById('logout-btn'),
+      loginDrop: document.getElementById('login-drop'),
+      modeAdminBtn: document.getElementById('mode-admin-btn'),
+      modeVisitorBtn: document.getElementById('mode-visitor-btn'),
+      loginNameLabel: document.getElementById('login-name-label'),
+      loginFootnote: document.getElementById('login-footnote'),
+      heroSubtitle: document.querySelector('.hero p')
     };
+
+    (function initLoginWaterDrop() {
+      const gate = els.loginGate;
+      if (!gate || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+      let raf = 0;
+      let nextX = 50;
+      let nextY = 42;
+
+      const apply = () => {
+        raf = 0;
+        gate.style.setProperty('--mx', `${nextX}%`);
+        gate.style.setProperty('--my', `${nextY}%`);
+      };
+
+      const move = (clientX, clientY) => {
+        const rect = gate.getBoundingClientRect();
+        if (!rect.width || !rect.height) return;
+        nextX = ((clientX - rect.left) / rect.width) * 100;
+        nextY = ((clientY - rect.top) / rect.height) * 100;
+        if (!raf) raf = requestAnimationFrame(apply);
+      };
+
+      gate.addEventListener('pointermove', event => {
+        move(event.clientX, event.clientY);
+      }, { passive: true });
+
+      gate.addEventListener('pointerleave', () => {
+        nextX = 50;
+        nextY = 42;
+        if (!raf) raf = requestAnimationFrame(apply);
+      });
+    })();
 
     function setStatus(type, text) {
       els.statusDot.className = `status-dot ${type === 'ok' ? 'ok' : type === 'error' ? 'error' : ''} ${type === 'loading' ? 'pulse' : ''}`.trim();
@@ -1939,7 +2283,7 @@
       `).join('');
 
       printRoot.innerHTML = `
-        <h1>Longmotive Worker Report</h1>
+        <h1>LONGMOTIVE Worker Report</h1>
         <div class="print-meta">Printed ${escapeHtml(printedAt)} · Date range: ${escapeHtml(getActiveDateRangeLabel())}</div>
         <div class="print-summary">
           <div class="print-summary-card"><div class="label">Total Workers</div><div class="value">${filteredData.length}</div></div>
@@ -2196,7 +2540,7 @@
     function renderTodayView() {
       const todayData = globalData.filter(worker => isToday(worker.date) && !isCancelled(worker));
       renderList(els.todayDashboard, todayData, {
-        showCancel: true,
+        showCancel: canCancelWorkers(),
         emptyText: 'No workers scheduled for today.'
       });
       drawChart('todayChart', els.todayChartNote, 'doughnut', todayData, 'Today workers by company', 'company', 'companies');
@@ -2265,7 +2609,9 @@
 
         applyPayload(payload);
         writeCache(payload);
-        setStatus('ok', `Loaded ${globalData.length} records`);
+        const roleLabel = currentUser.role === 'admin' ? 'Admin' : currentUser.role === 'visitor' ? 'Visitor' : '';
+        const who = currentUser.name ? `${currentUser.name}${roleLabel ? ` (${roleLabel})` : ''} · ` : '';
+        setStatus('ok', `${who}${globalData.length} records`);
       } catch (error) {
         console.error(error);
         if (isBackgroundRefresh) {
@@ -2335,17 +2681,24 @@
     }
 
     function enterDashboard(displayName) {
+      document.documentElement.classList.add('authed');
       els.loginGate.classList.add('hidden');
       els.appShell.classList.remove('hidden');
       document.body.style.overflow = '';
 
+      const roleLabel = currentUser.role === 'admin' ? 'Admin' : 'Visitor';
+      if (els.heroSubtitle) {
+        els.heroSubtitle.textContent = currentUser.role === 'admin'
+          ? 'Induction command center — today’s workers, schedules, and cancellation control.'
+          : 'Visitor view — browse today’s workers and records. Cancel is disabled.';
+      }
+
       if (dataReady) {
         els.filterSubtitleText.textContent = `Enter exactly 4 digits to search IC/Passport. Leave date range empty to show all ${globalData.length} loaded records.`;
         renderAll();
-        setStatus('ok', displayName ? `${displayName} · ${globalData.length} records` : `Loaded ${globalData.length} records`);
+        setStatus('ok', displayName ? `${displayName} (${roleLabel}) · ${globalData.length} records` : `Loaded ${globalData.length} records`);
       } else {
-        if (displayName) els.statusText.textContent = `Welcome, ${displayName}`;
-        // Preload hadn't finished (slow network / first-ever visit) — fall back to a normal load now that the dashboard is visible.
+        if (displayName) els.statusText.textContent = `Welcome, ${displayName} (${roleLabel})`;
         loadData(false);
       }
 
@@ -2367,17 +2720,41 @@
       els.loginError.classList.remove('show');
     }
 
+    function setLoginMode(mode) {
+      selectedLoginMode = mode === 'visitor' ? 'visitor' : 'admin';
+      els.modeAdminBtn.classList.toggle('active', selectedLoginMode === 'admin');
+      els.modeVisitorBtn.classList.toggle('active', selectedLoginMode === 'visitor');
+      if (selectedLoginMode === 'admin') {
+        els.loginNameLabel.textContent = 'Admin username';
+        els.loginName.placeholder = 'Jet or Shamil';
+        els.loginFootnote.textContent = 'Admins: Jet or Shamil only. You stay signed in on this device until Sign out.';
+      } else {
+        els.loginNameLabel.textContent = 'Your name';
+        els.loginName.placeholder = 'Enter your name';
+        els.loginFootnote.textContent = 'Visitors can view workers only (no cancel). You stay signed in on this device until Sign out.';
+      }
+      clearLoginError();
+    }
+
     function returnToLogin() {
+      document.documentElement.classList.remove('authed');
       els.appShell.classList.add('hidden');
       els.loginGate.classList.remove('hidden');
       clearLoginError();
+      setLoginMode(selectedLoginMode || 'admin');
       els.loginName.focus();
       setStatus('', 'Connecting...');
     }
 
-    const savedUsername = readStoredUsername();
-    if (savedUsername) {
-      els.loginName.value = savedUsername;
+    els.modeAdminBtn.addEventListener('click', () => setLoginMode('admin'));
+    els.modeVisitorBtn.addEventListener('click', () => setLoginMode('visitor'));
+
+    const existingAuth = readAuthRecord();
+    if (existingAuth) {
+      els.loginName.value = existingAuth.name;
+      setLoginMode(existingAuth.role === 'visitor' ? 'visitor' : 'admin');
+    } else {
+      setLoginMode('admin');
     }
 
     els.loginName.addEventListener('input', clearLoginError);
@@ -2388,29 +2765,46 @@
 
       const name = els.loginName.value.trim();
       if (!name) {
-        showLoginError('Please enter your username.');
+        showLoginError(selectedLoginMode === 'admin' ? 'Please enter your admin username.' : 'Please enter your name.');
         return;
       }
 
-      if (!isAllowedUser(name)) {
-        showLoginError('Access denied. Only authorized users can open this dashboard.');
+      if (selectedLoginMode === 'admin') {
+        if (!isAdminUser(name)) {
+          showLoginError('Admin access is only for Jet or Shamil. Switch to Visitor to view only.');
+          return;
+        }
+        const displayName = canonicalDisplayName(name, 'admin');
+        startSession(displayName, 'admin');
+        enterDashboard(displayName);
         return;
       }
 
-      // Persist the canonical casing from the allowlist match where possible.
-      const canonical = ALLOWED_USERS.find(u => u === normalizeUsername(name));
-      const displayName = canonical ? canonical.charAt(0).toUpperCase() + canonical.slice(1) : name;
-      storeUsername(displayName);
+      // Visitor: any name, view-only
+      const displayName = canonicalDisplayName(name, 'visitor');
+      if (displayName.length < 2) {
+        showLoginError('Please enter a valid name (at least 2 characters).');
+        return;
+      }
+      startSession(displayName, 'visitor');
       enterDashboard(displayName);
     });
 
     els.logoutBtn.addEventListener('click', () => {
-      clearStoredUsername();
+      endSession();
       els.loginName.value = '';
       returnToLogin();
     });
 
+    // Stay on dashboard after refresh / reopen on the same laptop or phone.
+    restoreSessionIfAny();
+
     async function cancelWorker(rowNumber, btnElement) {
+      if (!canCancelWorkers()) {
+        showToast('Visitors cannot cancel workers.');
+        return;
+      }
+
       const workerName = btnElement.dataset.workerName || 'this worker';
       const confirmed = window.confirm(`Cancel ${workerName}? This will update the master list if the backend succeeds.`);
       if (!confirmed) return;
