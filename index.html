@@ -680,10 +680,209 @@
       .btn { justify-content: center; width: 100%; }
       .tabs { border-radius: 18px; flex-direction: column; }
     }
+
+    .hidden { display: none !important; }
+
+    /* ---------- Login / preload gate ---------- */
+    #login-gate {
+      position: fixed;
+      inset: 0;
+      z-index: 999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background:
+        radial-gradient(circle at top left, rgba(37, 99, 235, 0.35), transparent 40%),
+        radial-gradient(circle at bottom right, rgba(37, 99, 235, 0.25), transparent 45%),
+        linear-gradient(135deg, #0f172a 0%, #1e3a8a 55%, #2563eb 100%);
+    }
+
+    .login-card {
+      width: min(400px, 100%);
+      background: rgba(15, 23, 42, 0.35);
+      backdrop-filter: blur(18px);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      border-radius: var(--radius-lg);
+      box-shadow: 0 30px 70px rgba(2, 6, 23, 0.45);
+      padding: 34px 30px 28px;
+      color: #fff;
+    }
+
+    .login-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 22px;
+    }
+
+    .login-logo {
+      width: 42px;
+      height: 42px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.14);
+      border: 1px solid rgba(255, 255, 255, 0.24);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      font-size: 15px;
+      letter-spacing: -0.02em;
+    }
+
+    .login-brand-text h2 {
+      margin: 0;
+      font-size: 17px;
+      letter-spacing: -0.02em;
+    }
+
+    .login-brand-text p {
+      margin: 2px 0 0;
+      font-size: 12px;
+      color: #bfdbfe;
+    }
+
+    .login-card h1 {
+      margin: 0 0 6px;
+      font-size: 24px;
+      letter-spacing: -0.03em;
+    }
+
+    .login-card > p.login-sub {
+      margin: 0 0 24px;
+      font-size: 13.5px;
+      color: #cbd5f5;
+      line-height: 1.5;
+    }
+
+    .login-field {
+      margin-bottom: 14px;
+    }
+
+    .login-field label {
+      display: block;
+      font-size: 11.5px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #bfdbfe;
+      margin-bottom: 6px;
+    }
+
+    .login-field input {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      background: rgba(255, 255, 255, 0.08);
+      color: #fff;
+      outline: none;
+      transition: 0.15s ease;
+    }
+
+    .login-field input::placeholder { color: rgba(255, 255, 255, 0.45); }
+
+    .login-field input:focus {
+      border-color: #93c5fd;
+      background: rgba(255, 255, 255, 0.14);
+    }
+
+    .login-preload {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 18px 0 20px;
+      padding: 11px 13px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      font-size: 12.5px;
+      color: #dbeafe;
+    }
+
+    .login-spinner {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-top-color: #fff;
+      animation: spin 0.8s linear infinite;
+      flex-shrink: 0;
+    }
+
+    .login-preload.ready .login-spinner { display: none; }
+    .login-preload.ready::before {
+      content: "✓";
+      color: #4ade80;
+      font-weight: 900;
+      flex-shrink: 0;
+    }
+    .login-preload.error .login-spinner { display: none; }
+    .login-preload.error::before {
+      content: "!";
+      color: #fca5a5;
+      font-weight: 900;
+      flex-shrink: 0;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .login-submit {
+      width: 100%;
+      justify-content: center;
+      padding: 13px 14px;
+      font-size: 14.5px;
+      background: #fff;
+      color: #1d4ed8;
+    }
+
+    .login-submit:hover:not(:disabled) { background: #eff6ff; transform: translateY(-1px); }
+
+    .login-footnote {
+      margin: 16px 0 0;
+      font-size: 11px;
+      color: rgba(191, 219, 254, 0.7);
+      text-align: center;
+    }
   </style>
 </head>
 <body>
-  <main class="app-shell">
+  <div id="login-gate">
+    <div class="login-card">
+      <div class="login-brand">
+        <div class="login-logo">LM</div>
+        <div class="login-brand-text">
+          <h2>Longmotive</h2>
+          <p>KTP Block F · Site EHS</p>
+        </div>
+      </div>
+
+      <h1>Induction Command Center</h1>
+      <p class="login-sub">Sign in to open today's induction dashboard. Your data is prepared in the background while you sign in.</p>
+
+      <form id="login-form" autocomplete="off">
+        <div class="login-field">
+          <label for="login-name">Staff Name</label>
+          <input type="text" id="login-name" name="login-name" placeholder="e.g. Jet" required />
+        </div>
+        <div class="login-field">
+          <label for="login-role">Role</label>
+          <input type="text" id="login-role" name="login-role" placeholder="e.g. Site Safety Admin" />
+        </div>
+
+        <div id="login-preload-status" class="login-preload">
+          <div class="login-spinner"></div>
+          <span id="login-preload-text">Preparing dashboard data...</span>
+        </div>
+
+        <button type="submit" class="btn login-submit" id="login-submit-btn">Enter Dashboard</button>
+      </form>
+
+      <p class="login-footnote">This screen does not restrict access — it only preloads data so the dashboard opens instantly.</p>
+    </div>
+  </div>
+
+  <main class="app-shell hidden">
     <section class="hero">
       <div>
         <h1>Longmotive Induction</h1>
@@ -897,7 +1096,14 @@
       overviewChartNote: document.getElementById('overview-chart-note'),
       overviewNationalityChartNote: document.getElementById('overview-nationality-chart-note'),
       toast: document.getElementById('toast'),
-      filterSubtitleText: document.getElementById('filter-subtitle-text')
+      filterSubtitleText: document.getElementById('filter-subtitle-text'),
+      loginGate: document.getElementById('login-gate'),
+      appShell: document.querySelector('.app-shell'),
+      loginForm: document.getElementById('login-form'),
+      loginName: document.getElementById('login-name'),
+      loginPreloadStatus: document.getElementById('login-preload-status'),
+      loginPreloadText: document.getElementById('login-preload-text'),
+      loginSubmitBtn: document.getElementById('login-submit-btn')
     };
 
     function setStatus(type, text) {
@@ -1700,17 +1906,85 @@
       }
     }
 
-    function loadDataWithCache() {
+    let dataReady = false; // true once globalData holds real data (cache or fresh)
+
+    function setLoginPreloadStatus(state, text) {
+      els.loginPreloadStatus.className = `login-preload ${state}`;
+      els.loginPreloadText.textContent = text;
+    }
+
+    // Runs the moment the page opens, behind the login card. Populates globalData
+    // but never touches the (hidden) dashboard DOM — that only happens on entry.
+    async function preloadBehindGate() {
       const cached = readCache();
+
       if (cached) {
-        // Instant render from cache, no spinner, no wait.
-        applyPayload(cached.payload);
-        setStatus('ok', `Showing cached data (${cached.ageSec}s old) — refreshing...`);
-        loadData(true); // silent background refresh
-      } else {
-        loadData(false); // first-ever visit / cache expired, show normal loading state
+        globalData = normalizeApiPayload(cached.payload);
+        populateFilters();
+        dataReady = true;
+        setLoginPreloadStatus('ready', `Ready — ${globalData.length} cached records (${cached.ageSec}s old)`);
+        // Keep refreshing quietly in case cache is stale; if it fails, cached data is still fine to use.
+        fetchAndStore(true).catch(() => {});
+        return;
+      }
+
+      setLoginPreloadStatus('loading', 'Preparing dashboard data...');
+      await fetchAndStore(false);
+    }
+
+    async function fetchAndStore(silent) {
+      try {
+        const response = await fetch(buildApiUrl(), { cache: 'no-store' });
+        if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        const payload = await response.json();
+
+        globalData = normalizeApiPayload(payload);
+        populateFilters();
+        writeCache(payload);
+        dataReady = true;
+
+        if (!silent) setLoginPreloadStatus('ready', `Ready — ${globalData.length} records loaded`);
+        else if (els.appShell.classList.contains('hidden')) {
+          // still on the login screen when the silent refresh landed — reflect it
+          setLoginPreloadStatus('ready', `Ready — ${globalData.length} records loaded`);
+        }
+      } catch (error) {
+        console.error(error);
+        if (!silent) setLoginPreloadStatus('error', 'Preload failed — will retry once you enter');
       }
     }
+
+    function enterDashboard(displayName) {
+      els.loginGate.classList.add('hidden');
+      els.appShell.classList.remove('hidden');
+      document.body.style.overflow = '';
+
+      if (displayName) {
+        els.statusText.textContent = `Welcome, ${displayName}`;
+      }
+
+      if (dataReady) {
+        els.filterSubtitleText.textContent = `Enter exactly 4 digits to search IC/Passport. Leave date range empty to show all ${globalData.length} loaded records.`;
+        renderAll();
+        setStatus('ok', `Loaded ${globalData.length} records`);
+      } else {
+        // Preload hadn't finished (slow network / first-ever visit) — fall back to a normal load now that the dashboard is visible.
+        loadData(false);
+      }
+
+      requestAnimationFrame(() => {
+        todayChartInstance?.resize();
+        todayNationalityChartInstance?.resize();
+        overviewChartInstance?.resize();
+        overviewNationalityChartInstance?.resize();
+      });
+    }
+
+    els.loginForm.addEventListener('submit', event => {
+      event.preventDefault();
+      const name = els.loginName.value.trim();
+      enterDashboard(name);
+    });
 
     async function cancelWorker(rowNumber, btnElement) {
       const workerName = btnElement.dataset.workerName || 'this worker';
@@ -1821,7 +2095,7 @@
       cancelWorker(btn.dataset.rowNumber, btn);
     });
 
-    loadDataWithCache();
+    preloadBehindGate();
   </script>
 </body>
 </html>
