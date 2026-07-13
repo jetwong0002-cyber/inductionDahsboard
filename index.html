@@ -915,9 +915,6 @@
 
     /* ---------- Login / username gate ---------- */
     #login-gate {
-      --mx: 38%;
-      --my: 48%;
-      --drop: 180px;
       position: fixed;
       inset: 0;
       z-index: 999;
@@ -945,6 +942,7 @@
       align-items: center;
       justify-content: flex-start;
       padding: 2vw 2vw 2vw 3vw;
+      z-index: 1;
     }
 
     .login-bg-layer svg {
@@ -956,74 +954,13 @@
       flex-shrink: 0;
     }
 
-    .login-bg-sharp {
-      opacity: 1;
-      z-index: 1;
-    }
-
-    .login-bg-blur {
-      opacity: 1;
-      z-index: 2;
-      filter: blur(22px) saturate(0.98);
-      transform: scale(1.06);
-      -webkit-mask-image: radial-gradient(
-        circle var(--drop) at var(--mx) var(--my),
-        transparent 0%,
-        transparent 26%,
-        rgba(0, 0, 0, 0.5) 55%,
-        #000 76%
-      );
-      mask-image: radial-gradient(
-        circle var(--drop) at var(--mx) var(--my),
-        transparent 0%,
-        transparent 26%,
-        rgba(0, 0, 0, 0.5) 55%,
-        #000 76%
-      );
-    }
-
     .login-bg-veil {
       position: absolute;
       inset: 0;
-      z-index: 3;
+      z-index: 2;
       background:
-        radial-gradient(ellipse 55% 60% at 78% 50%, rgba(15, 23, 42, 0.55), transparent 62%),
-        linear-gradient(90deg, rgba(15, 23, 42, 0.1) 0%, rgba(30, 58, 138, 0.16) 42%, rgba(15, 23, 42, 0.42) 100%);
-      -webkit-mask-image: radial-gradient(
-        circle calc(var(--drop) + 10px) at var(--mx) var(--my),
-        transparent 0%,
-        transparent 30%,
-        rgba(0, 0, 0, 0.55) 60%,
-        #000 80%
-      );
-      mask-image: radial-gradient(
-        circle calc(var(--drop) + 10px) at var(--mx) var(--my),
-        transparent 0%,
-        transparent 30%,
-        rgba(0, 0, 0, 0.55) 60%,
-        #000 80%
-      );
-    }
-
-    .login-drop {
-      position: absolute;
-      width: calc(var(--drop) * 1.15);
-      height: calc(var(--drop) * 1.15);
-      left: var(--mx);
-      top: var(--my);
-      transform: translate(-50%, -50%);
-      border-radius: 50%;
-      pointer-events: none;
-      z-index: 4;
-      box-shadow:
-        inset 0 0 24px rgba(255, 255, 255, 0.4),
-        inset 0 -10px 28px rgba(37, 99, 235, 0.18),
-        0 0 0 1px rgba(255, 255, 255, 0.35),
-        0 12px 40px rgba(15, 23, 42, 0.22);
-      background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.32), transparent 42%);
-      mix-blend-mode: soft-light;
-      opacity: 0.95;
-      transition: width 0.2s ease, height 0.2s ease, opacity 0.2s ease;
+        radial-gradient(ellipse 55% 60% at 78% 50%, rgba(15, 23, 42, 0.45), transparent 62%),
+        linear-gradient(90deg, rgba(15, 23, 42, 0.06) 0%, rgba(30, 58, 138, 0.12) 42%, rgba(15, 23, 42, 0.36) 100%);
     }
 
     .login-card {
@@ -1241,21 +1178,11 @@
       line-height: 1.45;
     }
     @media (prefers-reduced-motion: reduce) {
-      .login-bg-blur,
-      .login-bg-veil {
-        -webkit-mask-image: none;
-        mask-image: none;
-        filter: blur(18px);
-      }
-      .login-drop { display: none; }
       .login-card { animation: none; }
     }
 
     @media (max-width: 560px) {
       #login-gate {
-        --drop: 120px;
-        --mx: 50%;
-        --my: 28%;
         justify-content: center;
         align-items: flex-end;
         padding: 16px 16px 28px;
@@ -1294,25 +1221,7 @@
 <body>
   <div id="login-gate">
     <div class="login-bg" aria-hidden="true">
-      <div class="login-bg-layer login-bg-sharp">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" aria-hidden="true">
-          <rect width="1600" height="900" fill="#f4f8fc"/>
-          <circle cx="220" cy="180" r="160" fill="#dbeafe" opacity="0.7"/>
-          <circle cx="1380" cy="720" r="220" fill="#bfdbfe" opacity="0.55"/>
-          <circle cx="1280" cy="160" r="120" fill="#93c5fd" opacity="0.28"/>
-          <g transform="translate(180,160)">
-            <path d="M0 0 V280 H280 V220 H72 V0 Z" fill="#0B3D82"/>
-            <rect x="108" y="62" width="42" height="138" rx="6" fill="#5BB6F0"/>
-            <rect x="166" y="34" width="42" height="166" rx="6" fill="#5BB6F0"/>
-            <rect x="224" y="78" width="42" height="122" rx="6" fill="#5BB6F0"/>
-            <g fill="#0B3D82" font-family="Arial Black, Arial, Helvetica, sans-serif" font-weight="900" letter-spacing="6">
-              <text x="340" y="140" font-size="120">LONG</text>
-              <text x="340" y="268" font-size="120">MOTIVE</text>
-            </g>
-          </g>
-        </svg>
-      </div>
-      <div class="login-bg-layer login-bg-blur">
+      <div class="login-bg-layer">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" aria-hidden="true">
           <rect width="1600" height="900" fill="#f4f8fc"/>
           <circle cx="220" cy="180" r="160" fill="#dbeafe" opacity="0.7"/>
@@ -1331,7 +1240,6 @@
         </svg>
       </div>
       <div class="login-bg-veil"></div>
-      <div class="login-drop" id="login-drop"></div>
     </div>
 
     <div class="login-card">
@@ -1746,42 +1654,8 @@
       loginPreloadText: document.getElementById('login-preload-text'),
       loginSubmitBtn: document.getElementById('login-submit-btn'),
       logoutBtn: document.getElementById('logout-btn'),
-      loginDrop: document.getElementById('login-drop'),
       heroSubtitle: document.querySelector('.hero p')
     };
-
-    (function initLoginWaterDrop() {
-      const gate = els.loginGate;
-      if (!gate || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-
-      let raf = 0;
-      let nextX = 38;
-      let nextY = 48;
-
-      const apply = () => {
-        raf = 0;
-        gate.style.setProperty('--mx', `${nextX}%`);
-        gate.style.setProperty('--my', `${nextY}%`);
-      };
-
-      const move = (clientX, clientY) => {
-        const rect = gate.getBoundingClientRect();
-        if (!rect.width || !rect.height) return;
-        nextX = ((clientX - rect.left) / rect.width) * 100;
-        nextY = ((clientY - rect.top) / rect.height) * 100;
-        if (!raf) raf = requestAnimationFrame(apply);
-      };
-
-      gate.addEventListener('pointermove', event => {
-        move(event.clientX, event.clientY);
-      }, { passive: true });
-
-      gate.addEventListener('pointerleave', () => {
-        nextX = 38;
-        nextY = 48;
-        if (!raf) raf = requestAnimationFrame(apply);
-      });
-    })();
 
     function setStatus(type, text) {
       els.statusDot.className = `status-dot ${type === 'ok' ? 'ok' : type === 'error' ? 'error' : ''} ${type === 'loading' ? 'pulse' : ''}`.trim();
