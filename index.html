@@ -590,11 +590,7 @@
             </div>
             <div class="field">
               <label for="filter-date">Date</label>
-              <input
-                id="filter-date"
-                type="date"
-                aria-label="Filter induction date"
-              />
+              <input id="filter-date" type="date" />
             </div>
             <div class="field">
               <label for="filter-company">Company</label>
@@ -725,75 +721,42 @@
     function parseDateToYmd(value) {
       if (value === null || value === undefined || value === '') return null;
 
-      // Google Sheets serial number.
       if (typeof value === 'number' && Number.isFinite(value)) {
-        const utcMilliseconds = Math.round((value - 25569) * 86400 * 1000);
-        const date = new Date(utcMilliseconds);
-
-        if (Number.isNaN(date.getTime())) return null;
-
-        // Use UTC parts for spreadsheet serials to prevent timezone date shifts.
-        return `${date.getUTCFullYear()}-${pad2(date.getUTCMonth() + 1)}-${pad2(date.getUTCDate())}`;
+        const date = new Date(Math.round((value - 25569) * 86400 * 1000));
+        return Number.isNaN(date.getTime()) ? null : dateToYmd(date);
       }
 
       const str = String(value).trim();
-      if (!str) return null;
 
-      // ISO date or ISO datetime, for example:
-      // 2026-07-13
-      // 2026-07-13T00:00:00.000Z
-      // 2026-07-13 00:00:00
-      const iso = /^(\d{4})-(\d{1,2})-(\d{1,2})(?:[T\s].*)?$/.exec(str);
-      if (iso) {
-        const year = Number(iso[1]);
-        const month = Number(iso[2]);
-        const day = Number(iso[3]);
-
-        const testDate = new Date(year, month - 1, day);
-        const isValid =
-          testDate.getFullYear() === year &&
-          testDate.getMonth() === month - 1 &&
-          testDate.getDate() === day;
-
-        return isValid ? `${year}-${pad2(month)}-${pad2(day)}` : null;
+      const isoWithTime = /^\d{4}-\d{2}-\d{2}T/.exec(str);
+      if (isoWithTime) {
+        const parsed = new Date(str);
+        return Number.isNaN(parsed.getTime()) ? null : dateToYmd(parsed);
       }
 
-      // Master-sheet format: DD/MM/YYYY.
-      // Also accepts a time after the date, for example:
-      // 13/07/2026 00:00:00
-      // 13-07-2026 8:30 AM
-      const dmy = /^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})(?:[,\sT].*)?$/.exec(str);
-      if (dmy) {
-        const day = Number(dmy[1]);
-        const month = Number(dmy[2]);
-        const year = Number(dmy[3]);
+      const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(str);
+      if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
 
-        const testDate = new Date(year, month - 1, day);
-        const isValid =
-          testDate.getFullYear() === year &&
-          testDate.getMonth() === month - 1 &&
-          testDate.getDate() === day;
-
-        return isValid ? `${year}-${pad2(month)}-${pad2(day)}` : null;
+      const slash = /^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/.exec(str);
+      if (slash) {
+        // Sheet is now dd/mm/yyyy — parse strictly, no guessing.
+        const day = Number(slash[1]);
+        const month = Number(slash[2]);
+        const year = Number(slash[3]);
+        if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+          return `${year}-${pad2(month)}-${pad2(day)}`;
+        }
       }
 
-      // Handles JavaScript/Apps Script date strings such as:
-      // Mon Jul 13 2026 00:00:00 GMT+0800
-      const parsed = new Date(str);
-      if (!Number.isNaN(parsed.getTime())) {
-        return dateToYmd(parsed);
-      }
-
-      console.warn('[Longmotive] Unable to parse date:', value);
-      return null;
+      const date = new Date(str);
+      return Number.isNaN(date.getTime()) ? null : dateToYmd(date);
     }
 
     function formatDate(value) {
       const ymd = parseDateToYmd(value);
       if (!ymd) return 'No date';
-
-      const [year, month, day] = ymd.split('-');
-      return `${day}/${month}/${year}`;
+      const date = ymdToLocalDate(ymd);
+      return date ? date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: '2-digit' }) : ymd;
     }
 
     function isToday(dateValue) {
@@ -883,37 +846,7 @@
     }
 
     function normalizeWorker(raw, index) {
-      let dateValue = getRawField(raw, [
-        'date', 'Date',
-        'inductionDate', 'InductionDate', 'Induction Date',
-        'INDUCTION DATE', 'INDUCTION DATE.',
-        'induction_date', 'workerDate', 'scheduledDate'
-      ]);
-
-      // Fallback: locate any header containing "induction" + "date",
-      // or any header containing "date".
-      if (dateValue === null || dateValue === undefined || String(dateValue).trim() === '') {
-        dateValue = findFieldByFragments(raw, [
-          ['induction', 'date'],
-          ['date']
-        ], '');
-      }
-
-      // Final fallback: scan the row values for something that looks like a date.
-      // This protects against unexpected API header names.
-      if (dateValue === null || dateValue === undefined || String(dateValue).trim() === '') {
-        for (const value of Object.values(raw || {})) {
-          const candidate = String(value ?? '').trim();
-          if (
-            /^\d{1,2}[\/-]\d{1,2}[\/-]\d{4}(?:[\s,T].*)?$/.test(candidate) ||
-            /^\d{4}-\d{1,2}-\d{1,2}(?:[T\s].*)?$/.test(candidate) ||
-            /^[A-Za-z]{3}\s+[A-Za-z]{3}\s+\d{1,2}\s+\d{4}/.test(candidate)
-          ) {
-            dateValue = value;
-            break;
-          }
-        }
-      }
+      const dateValue = getRawField(raw, ['date', 'Date', 'inductionDate', 'InductionDate', 'Induction Date']);
 
       // 1. Get the raw IC value — try known exact headers first, then fall back to
       // fuzzy-matching any header that mentions ic/nric/passport/last4.
@@ -963,8 +896,6 @@
         console.log('[Longmotive debug] raw column headers from API:', Object.keys(raw || {}));
         console.log('[Longmotive debug] raw row 0:', raw);
         console.log('[Longmotive debug] resolved icLast4 for row 0:', worker.icLast4);
-        console.log('[Longmotive debug] resolved raw date for row 0:', dateValue);
-        console.log('[Longmotive debug] resolved dateYmd for row 0:', worker.dateYmd);
       }
 
       return worker;
@@ -1387,10 +1318,7 @@
       renderOverviewView();
     });
 
-    els.filterDate.addEventListener('input', renderOverviewView);
-    els.filterDate.addEventListener('change', renderOverviewView);
-
-    [els.filterCompany, els.filterBlock].forEach(input => {
+    [els.filterDate, els.filterCompany, els.filterBlock].forEach(input => {
       input.addEventListener('input', renderOverviewView);
       input.addEventListener('change', renderOverviewView);
     });
