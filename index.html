@@ -129,21 +129,6 @@
       justify-content: flex-end;
     }
 
-    .btn-logout {
-      background: rgba(255, 255, 255, 0.12);
-      color: #fff;
-      border: 1px solid rgba(255, 255, 255, 0.22);
-    }
-
-    .btn-logout:hover {
-      background: rgba(255, 255, 255, 0.22);
-      color: #fff;
-      transform: translateY(-2px);
-    }
-
-    .btn-logout:active {
-      transform: translateY(0) scale(0.97);
-    }
 
     .status-pill {
       display: inline-flex;
@@ -1276,7 +1261,7 @@
         <button type="submit" class="btn login-submit" id="login-submit-btn">Continue</button>
       </form>
 
-      <p class="login-footnote">Only configured usernames can enter. Admins can cancel; visitors are view-only. Stay signed in until Sign out.</p>
+      <p class="login-footnote">Only configured usernames can enter. Admins can cancel; visitors are view-only.</p>
     </div>
   </div>
 
@@ -1289,7 +1274,6 @@
       <div class="hero-actions">
         <div class="status-pill"><span id="status-dot" class="status-dot"></span><span id="status-text">Connecting...</span></div>
         <button class="btn btn-primary" id="refresh-btn" type="button"><span class="btn-spin-icon" aria-hidden="true">↻</span> Refresh</button>
-        <button class="btn btn-logout" id="logout-btn" type="button">Sign out</button>
       </div>
     </section>
 
@@ -1530,14 +1514,6 @@
       }
     }
 
-    function clearCookie() {
-      try {
-        document.cookie = `${AUTH_COOKIE}=; path=/; max-age=0; SameSite=Lax`;
-      } catch (_) {
-        /* ignore */
-      }
-    }
-
     function readAuthRecord() {
       try {
         const raw = localStorage.getItem(AUTH_STORAGE_KEY) || readCookie();
@@ -1576,31 +1552,10 @@
       writeCookie(payload);
     }
 
-    function clearAuthRecord() {
-      try {
-        localStorage.removeItem(AUTH_STORAGE_KEY);
-        localStorage.removeItem(USER_STORAGE_KEY);
-        localStorage.removeItem(SESSION_STORAGE_KEY);
-      } catch (_) {
-        /* ignore */
-      }
-      clearCookie();
-    }
-
-    function hasActiveSession() {
-      return Boolean(readAuthRecord());
-    }
-
     function startSession(displayName, role) {
       currentUser = { name: displayName, role };
       writeAuthRecord({ name: displayName, role, active: true, ts: Date.now() });
       document.documentElement.classList.add("authed");
-    }
-
-    function endSession() {
-      currentUser = { name: "", role: "" };
-      clearAuthRecord();
-      document.documentElement.classList.remove("authed");
     }
 
     function restoreSessionIfAny() {
@@ -1658,7 +1613,6 @@
       loginPreloadStatus: document.getElementById('login-preload-status'),
       loginPreloadText: document.getElementById('login-preload-text'),
       loginSubmitBtn: document.getElementById('login-submit-btn'),
-      logoutBtn: document.getElementById('logout-btn'),
       heroSubtitle: document.querySelector('.hero p')
     };
 
@@ -2583,15 +2537,6 @@
       els.loginError.classList.remove('show');
     }
 
-    function returnToLogin() {
-      document.documentElement.classList.remove('authed');
-      els.appShell.classList.add('hidden');
-      els.loginGate.classList.remove('hidden');
-      clearLoginError();
-      els.loginName.focus();
-      setStatus('', 'Connecting...');
-    }
-
     const existingAuth = readAuthRecord();
     if (existingAuth) {
       els.loginName.value = existingAuth.name;
@@ -2620,13 +2565,8 @@
       enterDashboard(displayName);
     });
 
-    els.logoutBtn.addEventListener('click', () => {
-      endSession();
-      els.loginName.value = '';
-      returnToLogin();
-    });
-
     // Stay on dashboard after refresh / reopen on the same laptop or phone.
+    // Sign out of the induction session is intentionally omitted — use the host/app Sign out.
     restoreSessionIfAny();
 
     async function cancelWorker(rowNumber, btnElement) {
