@@ -134,6 +134,13 @@
 
     .btn-primary:hover { transform: translateY(-1px); background: #eff6ff; }
 
+    .btn-solid {
+      background: var(--primary);
+      color: #fff;
+    }
+
+    .btn-solid:hover { background: var(--primary-dark); transform: translateY(-1px); }
+
     .btn-danger {
       background: #fee2e2;
       color: var(--danger);
@@ -272,8 +279,15 @@
 
     .filters {
       display: grid;
-      grid-template-columns: repeat(4, minmax(145px, 1fr)) auto;
+      grid-template-columns: repeat(5, minmax(120px, 1fr)) auto;
       gap: 12px;
+      align-items: end;
+    }
+
+    .filter-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
       align-items: end;
     }
 
@@ -570,7 +584,7 @@
         <div class="panel-header">
           <div>
             <h2 class="panel-title">Filters</h2>
-            <p class="panel-subtitle" id="filter-subtitle-text">Enter exactly 4 digits to search IC/Passport. Leave date empty to show all loaded records.</p>
+            <p class="panel-subtitle" id="filter-subtitle-text">Enter exactly 4 digits to search IC/Passport. Leave date range empty to show all loaded records.</p>
           </div>
         </div>
         <div class="panel-body">
@@ -589,8 +603,12 @@
               />
             </div>
             <div class="field">
-              <label for="filter-date">Date</label>
-              <input id="filter-date" type="date" />
+              <label for="filter-date-from">Date From</label>
+              <input id="filter-date-from" type="date" />
+            </div>
+            <div class="field">
+              <label for="filter-date-to">Date To</label>
+              <input id="filter-date-to" type="date" />
             </div>
             <div class="field">
               <label for="filter-company">Company</label>
@@ -600,7 +618,10 @@
               <label for="filter-block">Block</label>
               <select id="filter-block"><option value="All">All Blocks</option></select>
             </div>
-            <button class="btn btn-ghost" id="clear-filters-btn" type="button">Clear</button>
+            <div class="filter-actions">
+              <button class="btn btn-ghost" id="clear-filters-btn" type="button">Clear</button>
+              <button class="btn btn-primary" id="print-filters-btn" type="button">Print</button>
+            </div>
           </div>
         </div>
       </section>
@@ -634,7 +655,7 @@
           <div class="panel-header">
             <div>
               <h2 class="panel-title">All Records</h2>
-              <p class="panel-subtitle">Detailed worker table from the database</p>
+              <p class="panel-subtitle">Detailed worker table from the database. Use Print after filtering to export a summary report with charts.</p>
             </div>
           </div>
           <div class="panel-body">
@@ -676,10 +697,12 @@
       todayDashboard: document.getElementById('today-dashboard'),
       overviewDashboard: document.getElementById('overview-dashboard'),
       filterSearch: document.getElementById('filter-search'),
-      filterDate: document.getElementById('filter-date'),
+      filterDateFrom: document.getElementById('filter-date-from'),
+      filterDateTo: document.getElementById('filter-date-to'),
       filterCompany: document.getElementById('filter-company'),
       filterBlock: document.getElementById('filter-block'),
       clearFiltersBtn: document.getElementById('clear-filters-btn'),
+      printFiltersBtn: document.getElementById('print-filters-btn'),
       kpiToday: document.getElementById('kpi-today'),
       kpiWeek: document.getElementById('kpi-week'),
       kpiCompanies: document.getElementById('kpi-companies'),
@@ -984,20 +1007,224 @@
     function getFilteredOverviewData() {
       const selectedCompany = els.filterCompany.value;
       const selectedBlock = els.filterBlock.value;
-      const selectedDate = els.filterDate.value;
+      let dateFrom = els.filterDateFrom.value;
+      let dateTo = els.filterDateTo.value;
+
+      // Allow selecting a range in either order (e.g. 14 Jul then 1 Jul).
+      if (dateFrom && dateTo && dateFrom > dateTo) {
+        const swap = dateFrom;
+        dateFrom = dateTo;
+        dateTo = swap;
+      }
 
       const searchDigits = getSearchDigits(els.filterSearch.value);
 
       return globalData.filter(worker => {
         const workerIcLast4 = getWorkerIcLast4(worker.icLast4);
-        
+
         const matchCompany = selectedCompany === 'All' || worker.company === selectedCompany;
         const matchBlock = selectedBlock === 'All' || worker.block === selectedBlock;
         const matchSearch = !searchDigits || (searchDigits.length === 4 && workerIcLast4 === searchDigits);
-        const matchDate = selectedDate ? worker.dateYmd === selectedDate : true;
+
+        const ymd = worker.dateYmd;
+        const matchDate =
+          (!dateFrom && !dateTo) ||
+          (ymd &&
+            (!dateFrom || ymd >= dateFrom) &&
+            (!dateTo || ymd <= dateTo));
 
         return matchCompany && matchBlock && matchSearch && matchDate;
       });
+    }
+
+    function getActiveDateRangeLabel() {
+      let dateFrom = els.filterDateFrom.value;
+      let dateTo = els.filterDateTo.value;
+      if (dateFrom && dateTo && dateFrom > dateTo) {
+        const swap = dateFrom;
+        dateFrom = dateTo;
+        dateTo = swap;
+      }
+
+      if (dateFrom && dateTo) {
+        return `${formatDate(dateFrom)} – ${formatDate(dateTo)}`;
+      }
+      if (dateFrom) return `From ${formatDate(dateFrom)}`;
+      if (dateTo) return `Until ${formatDate(dateTo)}`;
+      return 'All dates';
+    }
+
+    function buildPrintChartImage(data, countKey, chartType, label) {
+      const counts = getCounts(data, countKey);
+      const { entries } = getTopNCounts(counts, TOP_N_COMPANIES);
+      if (!entries.length || !window.Chart) return '';
+
+      const canvas = document.createElement('canvas');
+      canvas.width = 640;
+      canvas.height = 320;
+      const chart = new Chart(canvas.getContext('2d'), {
+        type: chartType,
+        data: {
+          labels: entries.map(([name]) => name),
+          datasets: [{
+            label,
+            data: entries.map(([, count]) => count),
+            backgroundColor: entries.map((entry, i) =>
+              entry[0] === OTHERS_LABEL ? '#94a3b8' : chartColors[i % chartColors.length]
+            ),
+            borderRadius: chartType === 'bar' ? 8 : 0,
+            borderWidth: 0
+          }]
+        },
+        options: {
+          animation: false,
+          responsive: false,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: 'bottom' } },
+          scales: chartType === 'bar' ? { y: { beginAtZero: true, ticks: { precision: 0 } } } : undefined
+        }
+      });
+
+      const image = canvas.toDataURL('image/png');
+      chart.destroy();
+      return image;
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function printFilteredReport() {
+      const searchDigits = getSearchDigits(els.filterSearch.value);
+      if (searchDigits.length > 0 && searchDigits.length < 4) {
+        showToast('Enter exactly 4 digits to search before printing.');
+        return;
+      }
+
+      const filteredData = getFilteredOverviewData();
+      if (!filteredData.length) {
+        showToast('No workers match the current filters to print.');
+        return;
+      }
+
+      const companyImage = buildPrintChartImage(filteredData, 'company', 'doughnut', 'Workers by company');
+      const nationalityImage = buildPrintChartImage(filteredData, 'nationality', 'bar', 'Workers by nationality');
+      const printedAt = new Date().toLocaleString();
+      const companyFilter = els.filterCompany.value === 'All' ? 'All companies' : els.filterCompany.value;
+      const blockFilter = els.filterBlock.value === 'All' ? 'All blocks' : els.filterBlock.value;
+      const searchFilter = searchDigits.length === 4 ? searchDigits : 'None';
+
+      const rowsHtml = filteredData.map((worker, index) => `
+        <tr>
+          <td>${index + 1}</td>
+          <td>${escapeHtml(worker.name)}</td>
+          <td>${escapeHtml(worker.nationality)}</td>
+          <td>${escapeHtml(worker.company)}</td>
+          <td>${escapeHtml(worker.block)}</td>
+          <td>${escapeHtml(formatDate(worker.date))}</td>
+        </tr>
+      `).join('');
+
+      const printWindow = window.open('', '_blank', 'noopener,noreferrer,width=1024,height=768');
+      if (!printWindow) {
+        showToast('Pop-up blocked. Allow pop-ups to print the report.');
+        return;
+      }
+
+      printWindow.document.write(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Worker Filter Report</title>
+  <style>
+    body { font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif; color: #111827; margin: 24px; }
+    h1 { margin: 0 0 6px; font-size: 24px; }
+    .meta { color: #64748b; margin-bottom: 18px; font-size: 13px; }
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(120px, 1fr));
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .summary-card {
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 12px 14px;
+      background: #f8fafc;
+    }
+    .summary-card .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: #64748b; font-weight: 700; }
+    .summary-card .value { margin-top: 6px; font-size: 22px; font-weight: 800; }
+    .charts { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 22px; }
+    .chart-box { border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px; text-align: center; }
+    .chart-box h2 { margin: 0 0 10px; font-size: 14px; }
+    .chart-box img { max-width: 100%; height: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { border: 1px solid #e2e8f0; padding: 8px 10px; text-align: left; vertical-align: top; }
+    th { background: #f1f5f9; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; }
+    tr:nth-child(even) td { background: #f8fafc; }
+    .actions { margin: 0 0 18px; }
+    .actions button {
+      border: 0; background: #2563eb; color: #fff; font-weight: 700;
+      padding: 10px 14px; border-radius: 999px; cursor: pointer;
+    }
+    @media print {
+      .actions { display: none; }
+      body { margin: 12px; }
+      .charts { break-inside: avoid; }
+      table { page-break-inside: auto; }
+      tr { page-break-inside: avoid; }
+    }
+    @media (max-width: 800px) {
+      .summary, .charts { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="actions"><button onclick="window.print()">Print / Save PDF</button></div>
+  <h1>Longmotive Worker Report</h1>
+  <div class="meta">Printed ${escapeHtml(printedAt)} · Date range: ${escapeHtml(getActiveDateRangeLabel())}</div>
+  <div class="summary">
+    <div class="summary-card"><div class="label">Total Workers</div><div class="value">${filteredData.length}</div></div>
+    <div class="summary-card"><div class="label">Company Filter</div><div class="value" style="font-size:16px">${escapeHtml(companyFilter)}</div></div>
+    <div class="summary-card"><div class="label">Block Filter</div><div class="value" style="font-size:16px">${escapeHtml(blockFilter)}</div></div>
+    <div class="summary-card"><div class="label">IC Search</div><div class="value" style="font-size:16px">${escapeHtml(searchFilter)}</div></div>
+  </div>
+  <div class="charts">
+    <div class="chart-box">
+      <h2>By Company</h2>
+      ${companyImage ? `<img src="${companyImage}" alt="Workers by company chart" />` : '<p>No company chart data.</p>'}
+    </div>
+    <div class="chart-box">
+      <h2>By Nationality</h2>
+      ${nationalityImage ? `<img src="${nationalityImage}" alt="Workers by nationality chart" />` : '<p>No nationality chart data.</p>'}
+    </div>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Worker Name</th>
+        <th>Nationality</th>
+        <th>Company</th>
+        <th>Block</th>
+        <th>Date</th>
+      </tr>
+    </thead>
+    <tbody>${rowsHtml}</tbody>
+  </table>
+  <script>
+    window.addEventListener('load', () => {
+      setTimeout(() => window.print(), 250);
+    });
+  <\/script>
+</body>
+</html>`);
+      printWindow.document.close();
     }
 
     function updateKpis(filteredData) {
@@ -1219,7 +1446,7 @@
 
         globalData = normalizeApiPayload(payload);
         
-        els.filterSubtitleText.textContent = `Enter exactly 4 digits to search IC/Passport. Leave date empty to show all ${globalData.length} loaded records.`;
+        els.filterSubtitleText.textContent = `Enter exactly 4 digits to search IC/Passport. Leave date range empty to show all ${globalData.length} loaded records.`;
         
         populateFilters();
         renderAll();
@@ -1321,18 +1548,21 @@
       renderOverviewView();
     });
 
-    [els.filterDate, els.filterCompany, els.filterBlock].forEach(input => {
+    [els.filterDateFrom, els.filterDateTo, els.filterCompany, els.filterBlock].forEach(input => {
       input.addEventListener('input', renderOverviewView);
       input.addEventListener('change', renderOverviewView);
     });
 
     els.clearFiltersBtn.addEventListener('click', () => {
       els.filterSearch.value = '';
-      els.filterDate.value = '';
+      els.filterDateFrom.value = '';
+      els.filterDateTo.value = '';
       els.filterCompany.value = 'All';
       els.filterBlock.value = 'All';
       renderOverviewView();
     });
+
+    els.printFiltersBtn.addEventListener('click', printFilteredReport);
 
     els.refreshBtn.addEventListener('click', loadData);
 
