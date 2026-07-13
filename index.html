@@ -1463,7 +1463,11 @@
     // Admins: full access including Cancel
     const ADMIN_USERS = ["jet", "shamil"];
     // Visitors: can enter and view workers only (no Cancel)
-    const VISITOR_USERS = ["camilia"];
+    // Matching is case-insensitive. Add every allowed spelling here.
+    const VISITOR_USERS = [
+      "camilia",
+      "camilla"
+    ];
 
     let currentUser = { name: "", role: "" }; // role: 'admin' | 'visitor'
 
@@ -1472,11 +1476,16 @@
     }
 
     function normalizeUsername(value) {
-      return String(value || "").trim().toLowerCase();
+      return String(value || "")
+        .normalize("NFKC")
+        .replace(/[\u200B-\u200D\uFEFF]/g, "") // zero-width chars
+        .trim()
+        .replace(/\s+/g, " ")
+        .toLowerCase();
     }
 
     function isAdminUser(value) {
-      return ADMIN_USERS.includes(normalizeUsername(value));
+      return ADMIN_USERS.map(normalizeUsername).includes(normalizeUsername(value));
     }
 
     function isVisitorUser(value) {
@@ -2602,7 +2611,7 @@
 
       const role = resolveAccessRole(name);
       if (!role) {
-        showLoginError('Access denied. Your username is not in the admin or visitor list.');
+        showLoginError(`Access denied for "${name}". Add this username to VISITOR_USERS (or ADMIN_USERS) in the code.`);
         return;
       }
 
