@@ -9,23 +9,22 @@
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
 <style>
   :root {
-    --bg: #f3f6fb;
+    --bg: #ffffff;
+    --bg-soft: #f4f8fd;
     --panel: #ffffff;
-    --panel-soft: #f8fafc;
-    --text: #0f172a;
-    --muted: #475569;
-    --line: #d8e0ea;
-    --primary: #2563eb;
-    --primary-strong: #1d4ed8;
-    --primary-dark: #1d4ed8;
-    --primary-soft: #dbeafe;
-    --accent: #60a5fa;
-    --success: #047857;
-    --warning: #b45309;
+    --text: #0b1f3a;
+    --muted: #4a6078;
+    --line: #d4e2f2;
+    --navy: #0b3d82;
+    --sky: #5bb6f0;
+    --primary: #0b3d82;
+    --primary-strong: #08306a;
+    --primary-soft: #e8f3fc;
+    --accent: #5bb6f0;
     --danger: #b91c1c;
-    --shadow: 0 12px 32px rgba(15, 23, 42, 0.12);
+    --shadow: 0 16px 40px rgba(11, 61, 130, 0.1);
     --font-display: "Space Grotesk", sans-serif;
-    --font-body: "Manrope", Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --font-body: "Manrope", ui-sans-serif, system-ui, sans-serif;
     --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
   }
   * { box-sizing: border-box; }
@@ -38,162 +37,183 @@
   }
   button, input { font: inherit; }
   .hidden { display: none !important; }
+
+  /* —— Login —— */
   .login {
     position: fixed;
     inset: 0;
     min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    padding: 28px 4vw;
-    background:
-      linear-gradient(135deg, rgba(11, 61, 130, 0.08), rgba(91, 182, 240, 0.12)),
-      #f8fafc;
+    display: grid;
+    grid-template-columns: 1.15fr 0.85fr;
+    background: #ffffff;
     overflow: hidden;
   }
-  .login-bg {
-    position: absolute;
-    inset: 0;
-    z-index: 0;
-    pointer-events: none;
-    overflow: hidden;
-    background: #ffffff;
-  }
-  .login-bg-layer {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: flex-start;
-    padding: 2vw 4vw;
-    z-index: 1;
-    filter: drop-shadow(0 24px 42px rgba(15, 23, 42, 0.1));
-  }
-  .login-bg-layer svg {
-    width: min(82vw, 1120px);
-    height: auto;
-    min-height: 72vh;
-    display: block;
-    flex-shrink: 0;
-    transform: translateX(-1vw);
-  }
-  .login-bg-veil {
-    position: absolute;
-    inset: 0;
-    z-index: 2;
-    background:
-      radial-gradient(ellipse 55% 60% at 78% 50%, rgba(248, 250, 252, 0.94), transparent 62%),
-      linear-gradient(90deg, rgba(255, 255, 255, 0.02) 0%, rgba(255, 255, 255, 0.08) 40%, rgba(248, 250, 252, 0.98) 100%);
-  }
-  .login-card {
-    width: min(420px, 100%);
-    background: #ffffff;
-    border: 1px solid rgba(226, 232, 240, 0.95);
-    border-radius: 18px;
-    box-shadow: 0 18px 42px rgba(15, 23, 42, 0.14);
-    padding: 34px 30px 28px;
-    color: var(--text);
+  .login-hero {
     position: relative;
-    z-index: 5;
-    margin-right: min(2vw, 18px);
-    animation: loginIn 0.6s var(--ease-spring) both;
-    transition: box-shadow 0.25s ease;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: clamp(32px, 6vw, 72px);
+    background:
+      radial-gradient(ellipse 70% 55% at 18% 22%, rgba(91, 182, 240, 0.22), transparent 58%),
+      radial-gradient(ellipse 55% 50% at 88% 78%, rgba(11, 61, 130, 0.1), transparent 55%),
+      linear-gradient(160deg, #ffffff 0%, #f3f8fd 48%, #eaf3fb 100%);
+    overflow: hidden;
   }
-  .login-card:hover { box-shadow: 0 22px 48px rgba(15, 23, 42, 0.16); }
-  @keyframes loginIn {
-    from { opacity: 0; transform: translateY(22px) scale(0.98); }
+  .login-hero::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(11, 61, 130, 0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(11, 61, 130, 0.04) 1px, transparent 1px);
+    background-size: 48px 48px;
+    mask-image: radial-gradient(ellipse 80% 70% at 40% 45%, #000 20%, transparent 75%);
+    pointer-events: none;
+  }
+  .login-orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(2px);
+    pointer-events: none;
+    animation: orbFloat 10s ease-in-out infinite;
+  }
+  .login-orb-a {
+    width: 220px;
+    height: 220px;
+    top: -40px;
+    right: 8%;
+    background: rgba(91, 182, 240, 0.18);
+  }
+  .login-orb-b {
+    width: 160px;
+    height: 160px;
+    bottom: 12%;
+    left: 6%;
+    background: rgba(11, 61, 130, 0.1);
+    animation-delay: -4s;
+  }
+  @keyframes orbFloat {
+    0%, 100% { transform: translate(0, 0); }
+    50% { transform: translate(-12px, 14px); }
+  }
+  .login-brand-mark {
+    position: relative;
+    z-index: 1;
+    width: min(100%, 560px);
+    animation: brandIn 0.85s var(--ease-spring) both;
+  }
+  .login-brand-mark svg {
+    width: 100%;
+    height: auto;
+    display: block;
+    filter: drop-shadow(0 18px 36px rgba(11, 61, 130, 0.12));
+  }
+  .login-hero-copy {
+    position: relative;
+    z-index: 1;
+    margin-top: clamp(20px, 3vw, 36px);
+    max-width: 420px;
+    animation: brandIn 0.85s var(--ease-spring) 0.12s both;
+  }
+  .login-hero-copy p {
+    margin: 0;
+    font-size: clamp(15px, 1.5vw, 17px);
+    line-height: 1.55;
+    color: var(--muted);
+  }
+  @keyframes brandIn {
+    from { opacity: 0; transform: translateY(18px); }
     to { opacity: 1; transform: none; }
   }
-  .login-brand {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    margin-bottom: 28px;
-  }
-  .login-logo {
-    width: 52px;
-    height: 52px;
-    border-radius: 14px;
-    background: #eff6ff;
-    border: 1px solid #dbeafe;
+
+  .login-panel {
+    position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
-    overflow: hidden;
-    flex-shrink: 0;
-    padding: 7px;
+    padding: clamp(24px, 4vw, 48px);
+    background: #ffffff;
+    border-left: 1px solid var(--line);
   }
-  .login-logo svg {
-    width: 100%;
-    height: 100%;
-    display: block;
+  .login-panel::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 60% 40% at 100% 0%, rgba(91, 182, 240, 0.08), transparent 55%);
+    pointer-events: none;
   }
-  .login-brand-text h2 {
-    margin: 0;
-    font-family: var(--font-display);
-    font-size: 22px;
-    letter-spacing: 0.08em;
-    font-weight: 700;
-    text-transform: uppercase;
-    color: #0b3d82;
+  .login-card {
+    width: min(400px, 100%);
+    position: relative;
+    z-index: 1;
+    animation: panelIn 0.7s var(--ease-spring) 0.08s both;
   }
-  .login-brand-text p {
-    margin: 3px 0 0;
+  @keyframes panelIn {
+    from { opacity: 0; transform: translateX(18px); }
+    to { opacity: 1; transform: none; }
+  }
+  .login-card-kicker {
+    margin: 0 0 10px;
     font-size: 12px;
-    color: #475569;
-    letter-spacing: 0.04em;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--sky);
   }
   .login-card h1 {
-    margin: 0 0 8px;
+    margin: 0 0 10px;
     font-family: var(--font-display);
-    font-size: 26px;
-    letter-spacing: -0.03em;
+    font-size: clamp(28px, 3vw, 34px);
+    letter-spacing: -0.035em;
     font-weight: 600;
-    color: #0f172a;
+    color: var(--navy);
+    line-height: 1.1;
   }
-  .login-card > p.login-sub {
-    margin: 0 0 26px;
-    font-size: 14px;
-    color: #475569;
+  .login-card > .login-sub {
+    margin: 0 0 28px;
+    font-size: 14.5px;
+    color: var(--muted);
     line-height: 1.55;
   }
-  .login-field { margin-bottom: 14px; }
+  .login-field { margin-bottom: 16px; }
   .login-field label {
     display: block;
     font-size: 11.5px;
     font-weight: 700;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
-    color: #334155;
-    margin-bottom: 7px;
+    color: var(--navy);
+    margin-bottom: 8px;
   }
   .login-field input {
     width: 100%;
-    padding: 13px 15px;
-    border-radius: 14px;
-    border: 1px solid #cbd5e1;
-    background: #f8fafc;
+    padding: 14px 16px;
+    border-radius: 12px;
+    border: 1.5px solid #c5d6ea;
+    background: var(--bg-soft);
     color: var(--text);
     outline: none;
-    transition: 0.18s ease;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
   }
-  .login-field input::placeholder { color: #64748b; }
+  .login-field input::placeholder { color: #7a93ad; }
   .login-field input:hover {
-    border-color: #93c5fd;
+    border-color: var(--sky);
     background: #fff;
   }
   .login-field input:focus {
-    border-color: var(--primary);
+    border-color: var(--navy);
     background: #fff;
-    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.14);
+    box-shadow: 0 0 0 4px rgba(91, 182, 240, 0.28);
   }
   .login-error,
   .error {
     display: none;
     margin: 0 0 14px;
     padding: 11px 13px;
-    border-radius: 12px;
-    background: #fee2e2;
+    border-radius: 10px;
+    background: #fef2f2;
     border: 1px solid #fecaca;
     color: var(--danger);
     font-size: 13px;
@@ -212,139 +232,247 @@
   }
   .login-submit {
     width: 100%;
-    justify-content: center;
     margin-top: 4px;
-    padding: 14px 16px;
+    padding: 15px 18px;
     border: 0;
     font-size: 15px;
     font-weight: 800;
-    background: var(--primary);
+    letter-spacing: 0.02em;
+    background: var(--navy);
     color: #fff;
-    border-radius: 14px;
+    border-radius: 12px;
     cursor: pointer;
-    transition: transform 0.18s var(--ease-spring), background 0.18s ease;
+    transition: transform 0.18s var(--ease-spring), background 0.18s ease, box-shadow 0.18s ease;
+    box-shadow: 0 10px 24px rgba(11, 61, 130, 0.22);
   }
   .login-submit:hover:not(:disabled) {
     transform: translateY(-2px);
-    background: var(--primary-dark);
+    background: var(--primary-strong);
+    box-shadow: 0 14px 28px rgba(11, 61, 130, 0.28);
   }
   .login-submit:active:not(:disabled) {
     transform: translateY(0) scale(0.98);
   }
   .login-footnote,
   .help {
-    margin: 18px 0 0;
-    font-size: 11.5px;
-    color: #64748b;
-    text-align: center;
-    line-height: 1.45;
+    margin: 22px 0 0;
+    font-size: 12px;
+    color: #7a93ad;
+    line-height: 1.5;
   }
-  @media (prefers-reduced-motion: reduce) {
-    .login-card { animation: none; }
-  }
+
+  /* —— Chooser —— */
   .chooser {
     min-height: 100vh;
-    padding: 28px;
+    padding: clamp(24px, 4vw, 48px);
+    background:
+      radial-gradient(ellipse 50% 40% at 0% 0%, rgba(91, 182, 240, 0.16), transparent 55%),
+      radial-gradient(ellipse 45% 35% at 100% 100%, rgba(11, 61, 130, 0.08), transparent 50%),
+      linear-gradient(180deg, #ffffff 0%, #f5f9fd 100%);
   }
   .chooser-inner {
-    width: min(980px, 100%);
+    width: min(920px, 100%);
     margin: 0 auto;
+  }
+  .chooser-brand {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: clamp(28px, 4vw, 44px);
+    animation: brandIn 0.6s var(--ease-spring) both;
+  }
+  .chooser-logo {
+    width: 52px;
+    height: 52px;
+    flex-shrink: 0;
+  }
+  .chooser-logo svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+  .chooser-brand-text {
+    min-width: 0;
+    flex: 1;
+  }
+  .chooser-brand-text strong {
+    display: block;
+    font-family: var(--font-display);
+    font-size: clamp(22px, 2.5vw, 28px);
+    letter-spacing: 0.06em;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--navy);
+    line-height: 1.1;
+  }
+  .chooser-brand-text span {
+    display: block;
+    margin-top: 4px;
+    font-size: 13px;
+    color: var(--muted);
   }
   .topbar {
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: flex-end;
     gap: 16px;
-    margin-bottom: 22px;
+    margin-bottom: 28px;
+    animation: brandIn 0.6s var(--ease-spring) 0.08s both;
   }
   .topbar h1 {
     margin: 0;
-    font-size: 28px;
+    font-family: var(--font-display);
+    font-size: clamp(24px, 3vw, 32px);
+    letter-spacing: -0.03em;
+    color: var(--text);
     line-height: 1.15;
   }
   .topbar p {
-    margin: 6px 0 0;
+    margin: 8px 0 0;
     color: var(--muted);
-    font-size: 14px;
+    font-size: 15px;
   }
   .signout, .back {
-    border: 1px solid #cbd5e1;
+    border: 1.5px solid var(--line);
     background: #fff;
-    color: #334155;
+    color: var(--navy);
     border-radius: 10px;
-    padding: 10px 13px;
-    font-weight: 750;
+    padding: 11px 16px;
+    font-weight: 700;
     cursor: pointer;
+    transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s var(--ease-spring);
+  }
+  .signout:hover, .back:hover {
+    background: var(--primary-soft);
+    border-color: var(--sky);
+    transform: translateY(-1px);
   }
   .cards {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-    gap: 16px;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 18px;
   }
   .choice {
     text-align: left;
-    border: 1px solid var(--line);
-    border-radius: 16px;
-    background: #fff;
-    padding: 22px;
-    min-height: 170px;
+    border: 1.5px solid var(--line);
+    border-radius: 18px;
+    background: #ffffff;
+    padding: 28px 26px;
+    min-height: 220px;
     cursor: pointer;
-    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    box-shadow: 0 4px 16px rgba(11, 61, 130, 0.04);
+    transition: border-color 0.22s ease, box-shadow 0.22s ease, transform 0.22s var(--ease-spring);
+    animation: cardIn 0.65s var(--ease-spring) both;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+  }
+  .choice:nth-child(1) { animation-delay: 0.14s; }
+  .choice:nth-child(2) { animation-delay: 0.22s; }
+  @keyframes cardIn {
+    from { opacity: 0; transform: translateY(22px); }
+    to { opacity: 1; transform: none; }
+  }
+  .choice::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--navy), var(--sky));
+    opacity: 0;
+    transition: opacity 0.22s ease;
   }
   .choice:hover {
-    border-color: #93b4f8;
+    border-color: #9ec9ef;
     box-shadow: var(--shadow);
+    transform: translateY(-4px);
+  }
+  .choice:hover::after { opacity: 1; }
+  .choice:focus-visible {
+    outline: 2px solid var(--sky);
+    outline-offset: 3px;
   }
   .choice-icon {
-    width: 44px;
-    height: 44px;
+    width: 52px;
+    height: 52px;
     display: grid;
     place-items: center;
-    border-radius: 12px;
-    background: #eff6ff;
-    color: var(--primary);
-    font-size: 22px;
-    margin-bottom: 18px;
+    border-radius: 14px;
+    background: linear-gradient(145deg, #e8f3fc, #f0f7fd);
+    border: 1px solid #d6e8f7;
+    color: var(--navy);
+    margin-bottom: 22px;
+  }
+  .choice-icon svg {
+    width: 26px;
+    height: 26px;
+    display: block;
   }
   .choice h2 {
     margin: 0;
-    font-size: 18px;
+    font-family: var(--font-display);
+    font-size: 20px;
+    letter-spacing: -0.02em;
+    color: var(--navy);
   }
   .choice p {
-    margin: 8px 0 0;
+    margin: 10px 0 0;
     color: var(--muted);
-    font-size: 14px;
-    line-height: 1.5;
+    font-size: 14.5px;
+    line-height: 1.55;
+    flex: 1;
+  }
+  .choice-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 20px;
   }
   .role-note {
     display: inline-flex;
-    margin-top: 14px;
-    padding: 5px 8px;
+    padding: 6px 10px;
     border-radius: 8px;
-    background: #f1f5f9;
-    color: #334155;
+    background: var(--primary-soft);
+    color: var(--navy);
     font-size: 12px;
     font-weight: 750;
   }
+  .choice-go {
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--sky);
+    letter-spacing: 0.02em;
+    transition: transform 0.18s var(--ease-spring), color 0.18s ease;
+  }
+  .choice:hover .choice-go {
+    color: var(--navy);
+    transform: translateX(3px);
+  }
+
+  /* —— Frame shell —— */
   .frame-shell {
     height: 100vh;
     display: grid;
     grid-template-rows: auto 1fr;
-    background: #f8fafc;
+    background: #ffffff;
   }
   .frame-bar {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    padding: 10px 14px;
+    padding: 12px 16px;
     border-bottom: 1px solid var(--line);
-    background: #fff;
+    background: #ffffff;
   }
   .frame-title {
     min-width: 0;
     font-weight: 800;
-    color: #172033;
+    color: var(--navy);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -360,41 +488,61 @@
     border: 0;
     background: #fff;
   }
-  @media (max-width: 640px) {
+
+  @media (prefers-reduced-motion: reduce) {
+    .login-brand-mark,
+    .login-hero-copy,
+    .login-card,
+    .chooser-brand,
+    .topbar,
+    .choice,
+    .login-orb { animation: none; }
+  }
+
+  @media (max-width: 900px) {
     .login {
-      justify-content: center;
-      align-items: flex-end;
-      padding: 16px 16px 28px;
+      grid-template-columns: 1fr;
+      grid-template-rows: auto 1fr;
+      position: relative;
+      overflow: auto;
     }
-    .login-bg-layer {
-      justify-content: center;
+    .login-hero {
+      min-height: 38vh;
+      padding: 36px 24px 28px;
+      justify-content: flex-end;
+    }
+    .login-brand-mark { width: min(100%, 340px); }
+    .login-orb-a { width: 140px; height: 140px; }
+    .login-orb-b { display: none; }
+    .login-panel {
+      border-left: 0;
+      border-top: 1px solid var(--line);
       align-items: flex-start;
-      padding-top: 6vh;
+      padding: 28px 24px 40px;
     }
-    .login-bg-layer svg {
-      width: min(120vw, 900px);
-      min-height: 50vh;
-      transform: translateX(-3vw);
-    }
-    .login-card {
-      margin-right: 0;
-      width: 100%;
-      padding: 28px 24px 24px;
-    }
-    .chooser { padding: 20px 14px; }
+    .login-card { animation-name: brandIn; }
+    .cards { grid-template-columns: 1fr; }
+  }
+
+  @media (max-width: 640px) {
+    .chooser { padding: 20px 16px 32px; }
     .topbar { align-items: flex-start; flex-direction: column; }
-    .topbar h1 { font-size: 23px; }
+    .topbar h1 { font-size: 24px; }
     .frame-title { font-size: 14px; }
     .frame-bar { align-items: flex-start; flex-direction: column; }
+    .choice { min-height: 0; }
   }
 </style>
 </head>
 <body>
+
 <main id="login" class="login">
-  <div class="login-bg" aria-hidden="true">
-    <div class="login-bg-layer">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" aria-hidden="true">
-        <rect width="1600" height="900" fill="#ffffff"/>
+  <section class="login-hero" aria-hidden="true">
+    <div class="login-orb login-orb-a"></div>
+    <div class="login-orb login-orb-b"></div>
+    <div class="login-brand-mark">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-label="LONGMOTIVE">
+        <rect width="1600" height="900" fill="transparent"/>
         <g transform="translate(260,200)">
           <path d="M0 0 V240 H240 V188 H62 V0 Z" fill="#0B3D82"/>
           <rect x="94" y="54" width="36" height="118" rx="5" fill="#5BB6F0"/>
@@ -407,62 +555,85 @@
         </g>
       </svg>
     </div>
-    <div class="login-bg-veil"></div>
-  </div>
-
-  <section class="login-card" aria-labelledby="login-title">
-    <div class="login-brand">
-      <div class="login-logo">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" aria-hidden="true">
-              <path d="M8 8 V92 H92 V72 H28 V8 Z" fill="#0B3D82"/>
-              <rect x="40" y="28" width="14" height="40" rx="2.5" fill="#5BB6F0"/>
-              <rect x="58" y="18" width="14" height="50" rx="2.5" fill="#5BB6F0"/>
-              <rect x="76" y="32" width="14" height="36" rx="2.5" fill="#5BB6F0"/>
-            </svg>
-      </div>
-      <div class="login-brand-text">
-        <h2>LONGMOTIVE</h2>
-        <p>LONGMOTIVE access</p>
-      </div>
+    <div class="login-hero-copy">
+      <p>Induction and Safety Store dashboards — one place to manage workforce onboarding and safety inventory.</p>
     </div>
+  </section>
 
-    <h1 id="login-title">Welcome back</h1>
-    <p class="login-sub">Enter your username to open the LONGMOTIVE dashboards. Admin and visitor users can choose a dashboard; workers go directly to Safety Store.</p>
+  <section class="login-panel">
+    <div class="login-card" aria-labelledby="login-title">
+      <p class="login-card-kicker">Sign in</p>
+      <h1 id="login-title">Welcome back</h1>
+      <p class="login-sub">Enter your username to continue. Admins and visitors choose a dashboard; workers open Safety Store directly.</p>
 
-    <form id="login-form" autocomplete="off">
-      <div class="login-field">
-        <label for="username">Username</label>
-        <input id="username" name="username" placeholder="Enter your username" required autofocus />
-      </div>
-      <p id="login-error" class="login-error error" role="alert" aria-live="assertive"></p>
-      <button class="login-submit" type="submit">Continue</button>
-    </form>
+      <form id="login-form" autocomplete="off">
+        <div class="login-field">
+          <label for="username">Username</label>
+          <input id="username" name="username" placeholder="Enter your username" required autofocus />
+        </div>
+        <p id="login-error" class="login-error error" role="alert" aria-live="assertive"></p>
+        <button class="login-submit" type="submit">Continue</button>
+      </form>
 
-    <p class="login-footnote help">Only configured usernames can enter. Edit ADMIN_USERS, VISITOR_USERS, and WORKER_USERS inside this HTML to control access.</p>
+      <p class="login-footnote help">Access is limited to configured usernames. Edit ADMIN_USERS, VISITOR_USERS, and WORKER_USERS in this HTML to manage access.</p>
+    </div>
   </section>
 </main>
 
 <main id="chooser" class="chooser hidden">
   <div class="chooser-inner">
+    <div class="chooser-brand">
+      <div class="chooser-logo" aria-hidden="true">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="LONGMOTIVE mark">
+          <path d="M8 8 V92 H92 V72 H28 V8 Z" fill="#0B3D82"/>
+          <rect x="40" y="28" width="14" height="40" rx="2.5" fill="#5BB6F0"/>
+          <rect x="58" y="18" width="14" height="50" rx="2.5" fill="#5BB6F0"/>
+          <rect x="76" y="32" width="14" height="36" rx="2.5" fill="#5BB6F0"/>
+        </svg>
+      </div>
+      <div class="chooser-brand-text">
+        <strong>LONGMOTIVE</strong>
+        <span>Dashboard portal</span>
+      </div>
+      <button class="signout" id="chooser-signout" type="button">Sign out</button>
+    </div>
+
     <header class="topbar">
       <div>
         <h1 id="welcome-title">Choose dashboard</h1>
         <p id="welcome-subtitle"></p>
       </div>
-      <button class="signout" id="chooser-signout" type="button">Sign out</button>
     </header>
+
     <div class="cards">
       <button class="choice" type="button" data-dashboard="induction">
-        <div class="choice-icon">ID</div>
+        <div class="choice-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M8 7V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-8a2 2 0 0 1-2-2v-2"/>
+            <path d="M15 12H3"/>
+            <path d="M7 8l-4 4 4 4"/>
+          </svg>
+        </div>
         <h2>Induction Dashboard</h2>
-        <p>Open the worker induction command center and today’s schedule.</p>
-        <span class="role-note" id="induction-note"></span>
+        <p>Worker induction command center and today’s schedule.</p>
+        <div class="choice-footer">
+          <span class="role-note" id="induction-note"></span>
+          <span class="choice-go">Open →</span>
+        </div>
       </button>
       <button class="choice" type="button" data-dashboard="safety">
-        <div class="choice-icon">ST</div>
+        <div class="choice-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3l8 3v6c0 5-3.5 8.5-8 9.5C7.5 20.5 4 17 4 12V6l8-3z"/>
+            <path d="M9.5 12.5l1.8 1.8 3.7-3.8"/>
+          </svg>
+        </div>
         <h2>Safety Store Dashboard</h2>
-        <p>Open safety store inventory, purchase records, and stock controls.</p>
-        <span class="role-note" id="safety-note"></span>
+        <p>Safety store inventory, purchases, and stock controls.</p>
+        <div class="choice-footer">
+          <span class="role-note" id="safety-note"></span>
+          <span class="choice-go">Open →</span>
+        </div>
       </button>
     </div>
   </div>
