@@ -737,15 +737,21 @@
       const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(str);
       if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
 
+      // Master sheet date format: DD/MM/YYYY
       const slash = /^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/.exec(str);
       if (slash) {
-        let first = Number(slash[1]);
-        let second = Number(slash[2]);
+        const day = Number(slash[1]);
+        const month = Number(slash[2]);
         const year = Number(slash[3]);
 
-        const month = first > 12 ? second : first;
-        const day = first > 12 ? first : second;
-        if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+        // Validate the real calendar date, not only the number ranges.
+        const parsedDate = new Date(year, month - 1, day);
+        const isValidDate =
+          parsedDate.getFullYear() === year &&
+          parsedDate.getMonth() === month - 1 &&
+          parsedDate.getDate() === day;
+
+        if (isValidDate) {
           return `${year}-${pad2(month)}-${pad2(day)}`;
         }
       }
@@ -757,8 +763,9 @@
     function formatDate(value) {
       const ymd = parseDateToYmd(value);
       if (!ymd) return 'No date';
-      const date = ymdToLocalDate(ymd);
-      return date ? date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: '2-digit' }) : ymd;
+
+      const [year, month, day] = ymd.split('-');
+      return `${day}/${month}/${year}`;
     }
 
     function isToday(dateValue) {
