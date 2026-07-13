@@ -533,6 +533,43 @@
     .choice { min-height: 0; }
   }
 </style>
+
+<script>
+/* Hide login before first paint when a session/dashboard already exists (iOS refresh). */
+(function () {
+  try {
+    var raw = localStorage.getItem("lm_combined_dashboard_session_v1");
+    if (!raw) return;
+    var s = JSON.parse(raw);
+    if (!s || !s.name || !s.role) return;
+    document.documentElement.classList.add("has-session");
+    if (s.role === "worker" || s.dashboard === "induction" || s.dashboard === "safety") {
+      document.documentElement.classList.add("boot-frame");
+    } else {
+      document.documentElement.classList.add("boot-chooser");
+    }
+  } catch (_) {}
+})();
+</script>
+<style>
+  html.boot-frame #login,
+  html.boot-frame #chooser { display: none !important; }
+  html.boot-frame #frame-shell { display: grid !important; }
+  html.boot-chooser #login,
+  html.boot-chooser #frame-shell { display: none !important; }
+  html.boot-chooser #chooser { display: block !important; }
+  #frame-shell .frame-loading {
+    display: none;
+    place-items: center;
+    color: #0b3d82;
+    font-weight: 700;
+    font-size: 15px;
+    padding: 48px 20px;
+    background: #f8fafc;
+  }
+  html.boot-frame #frame-shell.is-loading .frame-loading { display: grid; }
+  html.boot-frame #frame-shell.is-loading #dashboard-frame { display: none; }
+</style>
 </head>
 <body>
 
@@ -647,6 +684,7 @@
       <button class="signout" id="frame-signout" type="button">Sign out</button>
     </div>
   </div>
+  <div class="frame-loading" id="frame-loading" aria-live="polite">Loading dashboard…</div>
   <iframe id="dashboard-frame" title="Selected dashboard"></iframe>
 </main>
 
@@ -822,6 +860,9 @@
 
   function enterChooser() {
     updateSession({ dashboard: null });
+    document.documentElement.classList.remove("boot-frame");
+    document.documentElement.classList.add("has-session", "boot-chooser");
+    els.frameShell.classList.remove("is-loading");
     els.welcomeTitle.textContent = "Welcome, " + session.name;
     els.welcomeSubtitle.textContent = roleLabel(session.role) + " access";
     els.inductionNote.textContent = session.role === "admin" ? "Edit access" : "View only";
@@ -891,13 +932,18 @@ function bootstrapSafety(html) {
       "Safety dashboard patch failed"
     );
 
-    // Remove external /lib script tags — we inject working libs + sync shim instead.
-    const withoutLibs = patched
+    let withoutLibs = patched
       .replace(/<script src="\/lib\/sync-behavior\.js"><\/script>\s*/g, "")
       .replace(/<script src="\/lib\/display-name\.js"><\/script>\s*/g, "");
 
+    withoutLibs = withoutLibs.replace(
+      "setSyncUi('🟢 已同步 Synced','sync-status synced');",
+      "setSyncUi(window.__LM_SAFETY_REMOTE_OK===false?'🟠 本地同步 Local only (Neon/Vercel offline)':'🟢 已同步 Synced', window.__LM_SAFETY_REMOTE_OK===false?'sync-status offline':'sync-status synced');"
+    );
+
     const fallbackLibs = '<script>' +
       'window.COMBINED_DASHBOARD_USER=' + JSON.stringify(session) + ';' +
+      'window.__LM_SAFETY_REMOTE_OK=null;' +
       'window.InventorySync={' +
       'isInventoryPayload:function(d){return !!(d&&typeof d==="object"&&!Array.isArray(d)&&Array.isArray(d.items)&&!d.error);},' +
       'syncFailureMessage:function(res,body){if(res&&res.ok&&!(body&&body.error))return null;if(body&&body.error)return String(body.error);return "HTTP "+((res&&res.status)||"?");},' +
@@ -924,6 +970,7 @@ function bootstrapSafety(html) {
       'return res.text().then(function(text){' +
       'var body=null;try{body=text?JSON.parse(text):null;}catch(e){body={error:text||("HTTP "+res.status)};}' +
       'if(res.ok&&!(body&&body.error)){' +
+      'window.__LM_SAFETY_REMOTE_OK=true;' +
       'if(method==="GET"&&body&&Array.isArray(body.items))writeLocal(body);' +
       'if(method==="POST"&&init&&init.body){try{writeLocal(JSON.parse(init.body));}catch(e){}}' +
       'return jsonResponse(body,200);' +
@@ -931,12 +978,10 @@ function bootstrapSafety(html) {
       'throw new Error((body&&body.error)||("HTTP "+res.status));' +
       '});' +
       '}).catch(function(err){' +
-      'if(method==="GET"){' +
-      'var local=readLocal();' +
-      'return jsonResponse(local,200);' +
-      '}' +
+      'window.__LM_SAFETY_REMOTE_OK=false;' +
+      'if(method==="GET"){return jsonResponse(readLocal(),200);}' +
       'if(method==="POST"){' +
-      'try{var payload=JSON.parse(init&&init.body||"null");if(!payload||!Array.isArray(payload.items))throw new Error("Invalid inventory payload");writeLocal(payload);return jsonResponse({success:true,offline:true},200);}' +
+      'try{var payload=JSON.parse(init&&init.body||"null");if(!payload||!Array.isArray(payload.items))throw new Error("Invalid inventory payload");writeLocal(payload);return jsonResponse({success:true,offline:true,neon:"disconnected"},200);}' +
       'catch(e){return jsonResponse({error:"Local sync failed: "+e.message},500);}' +
       '}' +
       'return jsonResponse({error:String(err&&err.message||err||"Sync failed")},500);' +
@@ -952,23 +997,34 @@ async function openDashboard(kind) {
     if (!session) return;
     if (session.role === "worker" && kind !== "safety") kind = "safety";
 
+    // Show frame shell immediately so iOS refresh never flashes the login page.
+    document.documentElement.classList.add("boot-frame", "has-session");
+    document.documentElement.classList.remove("boot-chooser");
+    els.frameShell.classList.add("is-loading");
+    els.frameTitle.textContent = (kind === "induction" ? "Induction Dashboard" : "Safety Store Dashboard") +
+      " - " + session.name + " (" + roleLabel(session.role) + ")";
+    els.backBtn.classList.toggle("hidden", session.role === "worker");
+    showOnly("frame");
+    updateSession({ dashboard: kind });
+
     try {
       if (kind === "induction") {
-        await preloadInductionData(false);
+        // Use cache if present; only block when we have nothing to show yet.
+        if (!readInductionPreload()) {
+          await preloadInductionData(false);
+        } else {
+          preloadInductionData(false);
+        }
       }
+
       const source = decodeHtml(DASHBOARDS[kind]);
       const prepared = kind === "induction" ? bootstrapInduction(source) : bootstrapSafety(source);
-      els.frameTitle.textContent = (kind === "induction" ? "Induction Dashboard" : "Safety Store Dashboard") +
-        " - " + session.name + " (" + roleLabel(session.role) + ")";
-      els.backBtn.classList.toggle("hidden", session.role === "worker");
 
       if (window.__dashboardBlobUrl) {
         URL.revokeObjectURL(window.__dashboardBlobUrl);
         window.__dashboardBlobUrl = null;
       }
 
-      // Safety uses a blob URL so localStorage sync persists with the parent origin.
-      // Induction keeps srcdoc (auth/cache are injected into that document).
       if (kind === "safety") {
         els.frame.removeAttribute("srcdoc");
         window.__dashboardBlobUrl = URL.createObjectURL(new Blob([prepared], { type: "text/html" }));
@@ -978,9 +1034,10 @@ async function openDashboard(kind) {
         els.frame.srcdoc = prepared;
       }
 
-      updateSession({ dashboard: kind });
-      showOnly("frame");
+      els.frameShell.classList.remove("is-loading");
     } catch (error) {
+      els.frameShell.classList.remove("is-loading");
+      document.documentElement.classList.remove("boot-frame", "boot-chooser", "has-session");
       els.error.textContent = error.message || "Could not open dashboard.";
       els.error.classList.add("show");
       showOnly("login");
@@ -989,6 +1046,8 @@ async function openDashboard(kind) {
 
 function signOut() {
     clearSession();
+    document.documentElement.classList.remove("boot-frame", "boot-chooser", "has-session");
+    els.frameShell.classList.remove("is-loading");
     showOnly("login");
     els.username.value = "";
     els.username.focus();
