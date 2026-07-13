@@ -601,7 +601,7 @@
     <div class="login-card" aria-labelledby="login-title">
       <p class="login-card-kicker">Sign in</p>
       <h1 id="login-title">Welcome back</h1>
-      <p class="login-sub">Enter your username to continue. Admins and visitors choose a dashboard; workers open Safety Store directly.</p>
+      <p class="login-sub">Enter your username to continue.</p>
 
       <form id="login-form" autocomplete="off">
         <div class="login-field">
@@ -612,7 +612,6 @@
         <button class="login-submit" type="submit">Continue</button>
       </form>
 
-      <p class="login-footnote help">Access is limited to configured usernames. Edit ADMIN_USERS, VISITOR_USERS, and WORKER_USERS in this HTML to manage access.</p>
     </div>
   </section>
 </main>
@@ -701,9 +700,9 @@
   const INDUCTION_API_KEY = "bdd821cd7f8e4ab4be6eae00aacb8dc3";
   const INDUCTION_CACHE_MAX_AGE_MS = 30 * 60 * 1000;
 
-  const ADMIN_USERS = ["jet", "shamil"];
-  const VISITOR_USERS = ["camilia", "camilla"];
-  const WORKER_USERS = ["worker"];
+  const ADMIN_USERS = ["Jet18", "Shamil01"];
+  const VISITOR_USERS = ["Camilia01"];
+  const WORKER_USERS = ["Aungthu1"];
 
   let session = null;
   let inductionPreloadPromise = null;
@@ -1065,7 +1064,7 @@ function signOut() {
     }
     const role = resolveRole(rawName);
     if (!role) {
-      els.error.textContent = "Access denied. Add this username to ADMIN_USERS, VISITOR_USERS, or WORKER_USERS.";
+      els.error.textContent = "Access denied.";
       els.error.classList.add("show");
       return;
     }
