@@ -1,13 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-label="LONGMOTIVE">
   <rect width="1600" height="900" fill="#ffffff"/>
-  <g transform="translate(20,160)">
-    <path d="M0 0 V280 H280 V220 H72 V0 Z" fill="#0B3D82"/>
-    <rect x="108" y="62" width="42" height="138" rx="6" fill="#5BB6F0"/>
-    <rect x="166" y="34" width="42" height="166" rx="6" fill="#5BB6F0"/>
-    <rect x="224" y="78" width="42" height="122" rx="6" fill="#5BB6F0"/>
+  <g transform="translate(260,200)">
+    <path d="M0 0 V240 H240 V188 H62 V0 Z" fill="#0B3D82"/>
+    <rect x="94" y="54" width="36" height="118" rx="5" fill="#5BB6F0"/>
+    <rect x="144" y="30" width="36" height="142" rx="5" fill="#5BB6F0"/>
+    <rect x="194" y="68" width="36" height="104" rx="5" fill="#5BB6F0"/>
     <g fill="#0B3D82" font-family="Arial Black, Arial, Helvetica, sans-serif" font-weight="900" letter-spacing="6">
-      <text x="340" y="140" font-size="120">LONG</text>
-      <text x="340" y="268" font-size="120">MOTIVE</text>
+      <text x="290" y="118" font-size="100">LONG</text>
+      <text x="290" y="228" font-size="100">MOTIVE</text>
     </g>
   </g>
 </svg>
