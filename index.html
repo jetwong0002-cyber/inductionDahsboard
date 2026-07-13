@@ -1632,35 +1632,83 @@
       renderOverviewView();
     }
 
-    async function loadData() {
-      setStatus('loading', 'Loading data...');
-      els.refreshBtn.disabled = true;
-      els.todayDashboard.innerHTML = '<div class="loading-state">Loading workers...</div>';
-      els.overviewDashboard.innerHTML = '<div class="loading-state">Loading overview...</div>';
+    const CACHE_KEY = 'lm_induction_cache_v1';
+    const CACHE_MAX_AGE_MS = 30 * 60 * 1000; // ignore cache older than 30 min
+
+    function readCache() {
+      try {
+        const raw = localStorage.getItem(CACHE_KEY);
+        if (!raw) return null;
+        const { payload, ts } = JSON.parse(raw);
+        if (Date.now() - ts > CACHE_MAX_AGE_MS) return null;
+        return { payload, ageSec: Math.round((Date.now() - ts) / 1000) };
+      } catch {
+        return null;
+      }
+    }
+
+    function writeCache(payload) {
+      try {
+        localStorage.setItem(CACHE_KEY, JSON.stringify({ payload, ts: Date.now() }));
+      } catch (e) {
+        console.warn('Cache write failed (quota exceeded?)', e);
+      }
+    }
+
+    function applyPayload(payload) {
+      globalData = normalizeApiPayload(payload);
+      els.filterSubtitleText.textContent = `Enter exactly 4 digits to search IC/Passport. Leave date range empty to show all ${globalData.length} loaded records.`;
+      populateFilters();
+      renderAll();
+    }
+
+    async function loadData(isBackgroundRefresh = false) {
+      if (!isBackgroundRefresh) {
+        setStatus('loading', 'Loading data...');
+        els.refreshBtn.disabled = true;
+        els.todayDashboard.innerHTML = '<div class="loading-state">Loading workers...</div>';
+        els.overviewDashboard.innerHTML = '<div class="loading-state">Loading overview...</div>';
+      } else {
+        setStatus('loading', 'Refreshing in background...');
+      }
 
       try {
         const response = await fetch(buildApiUrl(), { cache: 'no-store' });
         if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         const payload = await response.json();
 
-        globalData = normalizeApiPayload(payload);
-        
-        els.filterSubtitleText.textContent = `Enter exactly 4 digits to search IC/Passport. Leave date range empty to show all ${globalData.length} loaded records.`;
-        
-        populateFilters();
-        renderAll();
+        applyPayload(payload);
+        writeCache(payload);
         setStatus('ok', `Loaded ${globalData.length} records`);
       } catch (error) {
         console.error(error);
-        setStatus('error', 'Load failed');
-        const message = `Could not load data: ${error.message}`;
-        els.todayDashboard.innerHTML = `<div class="error-state"></div>`;
-        els.todayDashboard.firstElementChild.textContent = message;
-        els.overviewDashboard.innerHTML = `<div class="error-state"></div>`;
-        els.overviewDashboard.firstElementChild.textContent = message;
-        showToast('Data load failed. Check Apps Script deployment, CORS, or JSON format.');
+        if (isBackgroundRefresh) {
+          // Cached data is already on screen — don't blow away the UI, just flag it.
+          setStatus('error', 'Background refresh failed (showing cached data)');
+          showToast('Could not refresh from server. Showing last cached data.');
+        } else {
+          setStatus('error', 'Load failed');
+          const message = `Could not load data: ${error.message}`;
+          els.todayDashboard.innerHTML = `<div class="error-state"></div>`;
+          els.todayDashboard.firstElementChild.textContent = message;
+          els.overviewDashboard.innerHTML = `<div class="error-state"></div>`;
+          els.overviewDashboard.firstElementChild.textContent = message;
+          showToast('Data load failed. Check Apps Script deployment, CORS, or JSON format.');
+        }
       } finally {
         els.refreshBtn.disabled = false;
+      }
+    }
+
+    function loadDataWithCache() {
+      const cached = readCache();
+      if (cached) {
+        // Instant render from cache, no spinner, no wait.
+        applyPayload(cached.payload);
+        setStatus('ok', `Showing cached data (${cached.ageSec}s old) — refreshing...`);
+        loadData(true); // silent background refresh
+      } else {
+        loadData(false); // first-ever visit / cache expired, show normal loading state
       }
     }
 
@@ -1695,6 +1743,8 @@
         populateFilters();
         renderAll();
         showToast(`${workerName} cancelled.`);
+        // Invalidate local cache — stale cached copy would still show this worker as active.
+        localStorage.removeItem(CACHE_KEY);
       } catch (error) {
         console.error(error);
         btnElement.disabled = false;
@@ -1763,7 +1813,7 @@
 
     els.printFiltersBtn.addEventListener('click', printFilteredReport);
 
-    els.refreshBtn.addEventListener('click', loadData);
+    els.refreshBtn.addEventListener('click', () => loadData(false));
 
     document.addEventListener('click', event => {
       const btn = event.target.closest('.cancel-worker-btn');
@@ -1771,7 +1821,7 @@
       cancelWorker(btn.dataset.rowNumber, btn);
     });
 
-    loadData();
+    loadDataWithCache();
   </script>
 </body>
 </html>
