@@ -1,0 +1,28 @@
+{
+  "name": "safety-inventory",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "mkdir -p public/lib && cp index.html public/ && cp lib/sync-behavior.js public/lib/ && cp lib/display-name.js public/lib/",
+    "test": "node test/sync-behavior.test.js && node test/display-name.test.js"
+  },
+  "dependencies": {
+    "@vercel/postgres": "^0.8.0"
+  },
+  "description": "",
+  "main": "index.js",
+  "directories": {
+    "lib": "lib",
+    "test": "test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jetwong0002-cyber/safety-inventory.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/jetwong0002-cyber/safety-inventory/issues"
+  },
+  "homepage": "https://github.com/jetwong0002-cyber/safety-inventory#readme"
+}
