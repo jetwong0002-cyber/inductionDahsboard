@@ -479,14 +479,9 @@
       opacity: 1;
     }
 
-    /* Same-page print report: kept off-screen (not display:none) so chart images print reliably */
+    /* Screen: hide print report. Print: show only the report. */
     #print-report-root {
-      position: absolute;
-      left: -10000px;
-      top: 0;
-      width: 900px;
-      pointer-events: none;
-      visibility: hidden;
+      display: none;
     }
 
     @media print {
@@ -494,9 +489,11 @@
         margin: 12mm;
       }
 
-      body {
+      html, body {
         background: #fff !important;
         color: #111827 !important;
+        height: auto !important;
+        overflow: visible !important;
       }
 
       body.printing-report > *:not(#print-report-root) {
@@ -504,14 +501,10 @@
       }
 
       body.printing-report #print-report-root {
-        position: static !important;
-        left: auto !important;
-        top: auto !important;
+        display: block !important;
         width: 100% !important;
         margin: 0;
         padding: 0;
-        visibility: visible !important;
-        pointer-events: auto;
         color: #111827;
         font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
       }
@@ -528,9 +521,7 @@
       }
 
       #print-report-root .print-summary {
-        display: grid;
-        grid-template-columns: 1fr;
-        gap: 8px;
+        display: block;
         margin-bottom: 14px;
         max-width: 240px;
       }
@@ -556,30 +547,92 @@
       }
 
       #print-report-root .print-charts {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 12px;
+        display: block;
         margin-bottom: 16px;
-        break-inside: avoid;
       }
 
       #print-report-root .print-chart-box {
         border: 1px solid #cbd5e1;
         border-radius: 8px;
-        padding: 8px;
-        text-align: center;
+        padding: 10px 12px;
+        margin-bottom: 12px;
+        break-inside: avoid;
+        page-break-inside: avoid;
       }
 
       #print-report-root .print-chart-box h2 {
-        margin: 0 0 8px;
+        margin: 0 0 10px;
         font-size: 13px;
+        text-align: left;
       }
 
-      #print-report-root .print-chart-box img {
-        max-width: 100%;
-        height: auto;
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
+      #print-report-root .print-bar-row {
+        display: grid;
+        grid-template-columns: 140px 1fr 36px;
+        gap: 8px;
+        align-items: center;
+        margin-bottom: 8px;
+        break-inside: avoid;
+      }
+
+      #print-report-root .print-bar-label {
+        font-size: 11px;
+        color: #111827;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      #print-report-root .print-bar-track {
+        height: 14px;
+        background: #e2e8f0 !important;
+        border: 1px solid #cbd5e1;
+        border-radius: 4px;
+        overflow: hidden;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+
+      #print-report-root .print-bar-fill {
+        display: block;
+        height: 100%;
+        min-height: 14px;
+        border-radius: 4px;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+
+      #print-report-root .print-bar-count {
+        font-size: 11px;
+        font-weight: 700;
+        text-align: right;
+      }
+
+      #print-report-root .print-pie-wrap {
+        display: grid;
+        grid-template-columns: 180px 1fr;
+        gap: 12px;
+        align-items: center;
+      }
+
+      #print-report-root .print-pie-legend {
+        font-size: 11px;
+      }
+
+      #print-report-root .print-pie-legend-item {
+        display: grid;
+        grid-template-columns: 12px 1fr auto;
+        gap: 8px;
+        align-items: center;
+        margin-bottom: 6px;
+      }
+
+      #print-report-root .print-pie-swatch {
+        width: 12px;
+        height: 12px;
+        border-radius: 2px;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
       }
 
       #print-report-root table {
@@ -598,8 +651,8 @@
 
       #print-report-root th {
         background: #f1f5f9 !important;
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
         font-size: 10px;
         text-transform: uppercase;
         letter-spacing: 0.04em;
@@ -1186,22 +1239,10 @@
       return 'All dates';
     }
 
-    function buildPrintChartImage(data, countKey, chartType) {
+    function buildPrintChartHtml(data, countKey, chartType) {
       const counts = getCounts(data, countKey);
       const { entries } = getTopNCounts(counts, TOP_N_COMPANIES);
-      if (!entries.length) return '';
-
-      const width = 640;
-      const height = 360;
-      const canvas = document.createElement('canvas');
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return '';
-
-      // Pure canvas drawing — more reliable for print than off-screen Chart.js.
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, width, height);
+      if (!entries.length) return '<p>No chart data.</p>';
 
       const labels = entries.map(([name]) => name);
       const values = entries.map(([, count]) => count);
@@ -1209,92 +1250,74 @@
         entry[0] === OTHERS_LABEL ? '#94a3b8' : chartColors[i % chartColors.length]
       );
       const total = values.reduce((sum, value) => sum + value, 0) || 1;
+      const maxValue = Math.max(...values, 1);
 
       if (chartType === 'doughnut') {
-        const cx = 210;
-        const cy = 165;
-        const radius = 110;
-        const inner = 58;
-        let start = -Math.PI / 2;
-
-        values.forEach((value, index) => {
+        // Inline SVG pie — prints reliably (no canvas/data-URL images).
+        const cx = 80;
+        const cy = 80;
+        const radius = 70;
+        let startAngle = -Math.PI / 2;
+        const slices = values.map((value, index) => {
           const angle = (value / total) * Math.PI * 2;
-          ctx.beginPath();
-          ctx.moveTo(cx, cy);
-          ctx.arc(cx, cy, radius, start, start + angle);
-          ctx.closePath();
-          ctx.fillStyle = colors[index];
-          ctx.fill();
-          start += angle;
-        });
+          const endAngle = startAngle + angle;
+          const x1 = cx + radius * Math.cos(startAngle);
+          const y1 = cy + radius * Math.sin(startAngle);
+          const x2 = cx + radius * Math.cos(endAngle);
+          const y2 = cy + radius * Math.sin(endAngle);
+          const largeArc = angle > Math.PI ? 1 : 0;
+          const path = angle >= Math.PI * 2 - 0.0001
+            ? `M ${cx} ${cy - radius} A ${radius} ${radius} 0 1 1 ${cx - 0.01} ${cy - radius} Z`
+            : `M ${cx} ${cy} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} Z`;
+          const slice = `<path d="${path}" fill="${colors[index]}" stroke="#ffffff" stroke-width="1" />`;
+          startAngle = endAngle;
+          return slice;
+        }).join('');
 
-        ctx.beginPath();
-        ctx.arc(cx, cy, inner, 0, Math.PI * 2);
-        ctx.fillStyle = '#ffffff';
-        ctx.fill();
+        const legend = labels.map((label, index) => `
+          <div class="print-pie-legend-item">
+            <svg width="12" height="12" aria-hidden="true"><rect width="12" height="12" fill="${colors[index]}"></rect></svg>
+            <span>${escapeHtml(label)}</span>
+            <strong>${values[index]}</strong>
+          </div>
+        `).join('');
 
-        ctx.fillStyle = '#111827';
-        ctx.font = 'bold 28px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(String(total), cx, cy - 8);
-        ctx.font = '12px sans-serif';
-        ctx.fillStyle = '#64748b';
-        ctx.fillText('Total', cx, cy + 16);
-
-        let legendY = 36;
-        labels.forEach((label, index) => {
-          ctx.fillStyle = colors[index];
-          ctx.fillRect(400, legendY, 14, 14);
-          ctx.fillStyle = '#111827';
-          ctx.font = '13px sans-serif';
-          ctx.textAlign = 'left';
-          ctx.textBaseline = 'top';
-          const text = `${label} (${values[index]})`;
-          ctx.fillText(text.length > 28 ? `${text.slice(0, 27)}…` : text, 422, legendY);
-          legendY += 24;
-        });
-      } else {
-        const left = 50;
-        const top = 24;
-        const chartWidth = width - left - 24;
-        const chartHeight = height - top - 70;
-        const maxValue = Math.max(...values, 1);
-        const barGap = 12;
-        const barWidth = Math.max(18, (chartWidth - barGap * (values.length + 1)) / values.length);
-
-        ctx.strokeStyle = '#e2e8f0';
-        ctx.beginPath();
-        ctx.moveTo(left, top);
-        ctx.lineTo(left, top + chartHeight);
-        ctx.lineTo(left + chartWidth, top + chartHeight);
-        ctx.stroke();
-
-        values.forEach((value, index) => {
-          const barHeight = (value / maxValue) * (chartHeight - 8);
-          const x = left + barGap + index * (barWidth + barGap);
-          const y = top + chartHeight - barHeight;
-          ctx.fillStyle = colors[index];
-          ctx.fillRect(x, y, barWidth, barHeight);
-
-          ctx.fillStyle = '#111827';
-          ctx.font = 'bold 12px sans-serif';
-          ctx.textAlign = 'center';
-          ctx.fillText(String(value), x + barWidth / 2, y - 6);
-
-          ctx.save();
-          ctx.translate(x + barWidth / 2, top + chartHeight + 10);
-          ctx.rotate(-Math.PI / 4);
-          ctx.font = '11px sans-serif';
-          ctx.textAlign = 'right';
-          ctx.fillStyle = '#334155';
-          const label = labels[index].length > 14 ? `${labels[index].slice(0, 13)}…` : labels[index];
-          ctx.fillText(label, 0, 0);
-          ctx.restore();
-        });
+        return `
+          <div class="print-pie-wrap">
+            <svg viewBox="0 0 160 160" width="160" height="160" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              ${slices}
+              <circle cx="${cx}" cy="${cy}" r="36" fill="#ffffff"></circle>
+              <text x="${cx}" y="${cy - 4}" text-anchor="middle" font-size="18" font-weight="700" fill="#111827">${total}</text>
+              <text x="${cx}" y="${cy + 14}" text-anchor="middle" font-size="10" fill="#64748b">Total</text>
+            </svg>
+            <div class="print-pie-legend">${legend}</div>
+          </div>
+        `;
       }
 
-      return canvas.toDataURL('image/png');
+      // Horizontal bars as SVG — SVG fills print without needing "Background graphics".
+      const rowHeight = 28;
+      const labelWidth = 150;
+      const chartWidth = 360;
+      const svgHeight = Math.max(rowHeight * labels.length, rowHeight);
+      const rows = labels.map((label, index) => {
+        const barWidth = Math.max(4, Math.round((values[index] / maxValue) * chartWidth));
+        const y = index * rowHeight;
+        const shortLabel = label.length > 22 ? `${label.slice(0, 21)}…` : label;
+        return `
+          <text x="0" y="${y + 16}" font-size="11" fill="#111827">${escapeHtml(shortLabel)}</text>
+          <rect x="${labelWidth}" y="${y + 4}" width="${chartWidth}" height="16" fill="#e2e8f0"></rect>
+          <rect x="${labelWidth}" y="${y + 4}" width="${barWidth}" height="16" fill="${colors[index]}"></rect>
+          <text x="${labelWidth + chartWidth + 8}" y="${y + 16}" font-size="11" font-weight="700" fill="#111827">${values[index]}</text>
+        `;
+      }).join('');
+
+      return `
+        <svg viewBox="0 0 ${labelWidth + chartWidth + 40} ${svgHeight}" width="100%" height="${svgHeight}"
+             xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          ${rows}
+        </svg>
+      `;
     }
 
     function escapeHtml(value) {
@@ -1337,8 +1360,8 @@
 
       // Build charts synchronously so window.print() stays in the user-click gesture
       // (required on many phones; also avoids laptop popup blockers).
-      const companyImage = buildPrintChartImage(filteredData, 'company', 'doughnut');
-      const nationalityImage = buildPrintChartImage(filteredData, 'nationality', 'bar');
+      const companyChartHtml = buildPrintChartHtml(filteredData, 'company', 'doughnut');
+      const nationalityChartHtml = buildPrintChartHtml(filteredData, 'nationality', 'bar');
       const printedAt = new Date().toLocaleString();
 
       const rowsHtml = filteredData.map((worker, index) => `
@@ -1361,11 +1384,11 @@
         <div class="print-charts">
           <div class="print-chart-box">
             <h2>By Company</h2>
-            ${companyImage ? `<img src="${companyImage}" alt="Workers by company chart" />` : '<p>No company chart data.</p>'}
+            ${companyChartHtml}
           </div>
           <div class="print-chart-box">
             <h2>By Nationality</h2>
-            ${nationalityImage ? `<img src="${nationalityImage}" alt="Workers by nationality chart" />` : '<p>No nationality chart data.</p>'}
+            ${nationalityChartHtml}
           </div>
         </div>
         <table>
