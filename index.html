@@ -592,12 +592,8 @@
               <label for="filter-date">Date</label>
               <input
                 id="filter-date"
-                type="text"
-                inputmode="numeric"
-                maxlength="10"
-                autocomplete="off"
-                placeholder="DD/MM/YYYY"
-                aria-label="Filter date in DD/MM/YYYY format"
+                type="date"
+                aria-label="Filter induction date"
               />
             </div>
             <div class="field">
@@ -887,7 +883,37 @@
     }
 
     function normalizeWorker(raw, index) {
-      const dateValue = getRawField(raw, ['date', 'Date', 'inductionDate', 'InductionDate', 'Induction Date']);
+      let dateValue = getRawField(raw, [
+        'date', 'Date',
+        'inductionDate', 'InductionDate', 'Induction Date',
+        'INDUCTION DATE', 'INDUCTION DATE.',
+        'induction_date', 'workerDate', 'scheduledDate'
+      ]);
+
+      // Fallback: locate any header containing "induction" + "date",
+      // or any header containing "date".
+      if (dateValue === null || dateValue === undefined || String(dateValue).trim() === '') {
+        dateValue = findFieldByFragments(raw, [
+          ['induction', 'date'],
+          ['date']
+        ], '');
+      }
+
+      // Final fallback: scan the row values for something that looks like a date.
+      // This protects against unexpected API header names.
+      if (dateValue === null || dateValue === undefined || String(dateValue).trim() === '') {
+        for (const value of Object.values(raw || {})) {
+          const candidate = String(value ?? '').trim();
+          if (
+            /^\d{1,2}[\/-]\d{1,2}[\/-]\d{4}(?:[\s,T].*)?$/.test(candidate) ||
+            /^\d{4}-\d{1,2}-\d{1,2}(?:[T\s].*)?$/.test(candidate) ||
+            /^[A-Za-z]{3}\s+[A-Za-z]{3}\s+\d{1,2}\s+\d{4}/.test(candidate)
+          ) {
+            dateValue = value;
+            break;
+          }
+        }
+      }
 
       // 1. Get the raw IC value — try known exact headers first, then fall back to
       // fuzzy-matching any header that mentions ic/nric/passport/last4.
@@ -937,6 +963,8 @@
         console.log('[Longmotive debug] raw column headers from API:', Object.keys(raw || {}));
         console.log('[Longmotive debug] raw row 0:', raw);
         console.log('[Longmotive debug] resolved icLast4 for row 0:', worker.icLast4);
+        console.log('[Longmotive debug] resolved raw date for row 0:', dateValue);
+        console.log('[Longmotive debug] resolved dateYmd for row 0:', worker.dateYmd);
       }
 
       return worker;
@@ -1022,8 +1050,7 @@
     function getFilteredOverviewData() {
       const selectedCompany = els.filterCompany.value;
       const selectedBlock = els.filterBlock.value;
-      const selectedDateText = els.filterDate.value.trim();
-      const selectedDate = selectedDateText ? parseDateToYmd(selectedDateText) : '';
+      const selectedDate = els.filterDate.value;
 
       const searchDigits = getSearchDigits(els.filterSearch.value);
 
@@ -1033,9 +1060,7 @@
         const matchCompany = selectedCompany === 'All' || worker.company === selectedCompany;
         const matchBlock = selectedBlock === 'All' || worker.block === selectedBlock;
         const matchSearch = !searchDigits || (searchDigits.length === 4 && workerIcLast4 === searchDigits);
-        const matchDate = selectedDateText
-          ? Boolean(selectedDate) && worker.dateYmd === selectedDate
-          : true;
+        const matchDate = selectedDate ? worker.dateYmd === selectedDate : true;
 
         return matchCompany && matchBlock && matchSearch && matchDate;
       });
@@ -1362,38 +1387,8 @@
       renderOverviewView();
     });
 
-    els.filterDate.addEventListener('input', () => {
-      let digits = els.filterDate.value.replace(/\D/g, '').slice(0, 8);
-      let formatted = digits;
-
-      if (digits.length > 4) {
-        formatted = `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
-      } else if (digits.length > 2) {
-        formatted = `${digits.slice(0, 2)}/${digits.slice(2)}`;
-      }
-
-      if (els.filterDate.value !== formatted) {
-        els.filterDate.value = formatted;
-      }
-
-      const value = els.filterDate.value.trim();
-
-      if (value && value.length < 10) {
-        els.kpiShowing.textContent = '0';
-        els.overviewDashboard.innerHTML =
-          '<div class="empty-state">Enter the complete date as DD/MM/YYYY.</div>';
-        return;
-      }
-
-      if (value && !parseDateToYmd(value)) {
-        els.kpiShowing.textContent = '0';
-        els.overviewDashboard.innerHTML =
-          '<div class="empty-state">Invalid date. Use DD/MM/YYYY, for example 13/07/2026.</div>';
-        return;
-      }
-
-      renderOverviewView();
-    });
+    els.filterDate.addEventListener('input', renderOverviewView);
+    els.filterDate.addEventListener('change', renderOverviewView);
 
     [els.filterCompany, els.filterBlock].forEach(input => {
       input.addEventListener('input', renderOverviewView);
