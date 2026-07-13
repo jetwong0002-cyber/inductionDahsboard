@@ -932,7 +932,7 @@
       z-index: 0;
       pointer-events: none;
       overflow: hidden;
-      background: #dbeafe;
+      background: #ffffff;
     }
 
     .login-bg-layer {
@@ -952,7 +952,7 @@
       min-height: 85vh;
       display: block;
       flex-shrink: 0;
-      transform: translateX(-7vw);
+      transform: translateX(-12vw);
     }
 
     .login-bg-veil {
@@ -960,8 +960,8 @@
       inset: 0;
       z-index: 2;
       background:
-        radial-gradient(ellipse 55% 60% at 78% 50%, rgba(15, 23, 42, 0.45), transparent 62%),
-        linear-gradient(90deg, rgba(15, 23, 42, 0.06) 0%, rgba(30, 58, 138, 0.12) 42%, rgba(15, 23, 42, 0.36) 100%);
+        radial-gradient(ellipse 55% 60% at 78% 50%, rgba(15, 23, 42, 0.4), transparent 62%),
+        linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0) 40%, rgba(15, 23, 42, 0.32) 100%);
     }
 
     .login-card {
@@ -1196,7 +1196,7 @@
       .login-bg-layer svg {
         width: min(160vw, 980px);
         min-height: 55vh;
-        transform: translateX(-10vw);
+        transform: translateX(-14vw);
       }
       .login-card {
         margin-right: 0;
@@ -1225,11 +1225,8 @@
     <div class="login-bg" aria-hidden="true">
       <div class="login-bg-layer">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" aria-hidden="true">
-          <rect width="1600" height="900" fill="#f4f8fc"/>
-          <circle cx="220" cy="180" r="160" fill="#dbeafe" opacity="0.7"/>
-          <circle cx="1380" cy="720" r="220" fill="#bfdbfe" opacity="0.55"/>
-          <circle cx="1280" cy="160" r="120" fill="#93c5fd" opacity="0.28"/>
-          <g transform="translate(80,160)">
+          <rect width="1600" height="900" fill="#ffffff"/>
+          <g transform="translate(20,160)">
             <path d="M0 0 V280 H280 V220 H72 V0 Z" fill="#0B3D82"/>
             <rect x="108" y="62" width="42" height="138" rx="6" fill="#5BB6F0"/>
             <rect x="166" y="34" width="42" height="166" rx="6" fill="#5BB6F0"/>
