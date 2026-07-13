@@ -1337,8 +1337,8 @@
 
       // Build charts synchronously so window.print() stays in the user-click gesture
       // (required on many phones; also avoids laptop popup blockers).
-      const companyImage = buildPrintChartImage(filteredData, 'company', 'doughnut', 'Workers by company');
-      const nationalityImage = buildPrintChartImage(filteredData, 'nationality', 'bar', 'Workers by nationality');
+      const companyImage = buildPrintChartImage(filteredData, 'company', 'doughnut');
+      const nationalityImage = buildPrintChartImage(filteredData, 'nationality', 'bar');
       const printedAt = new Date().toLocaleString();
 
       const rowsHtml = filteredData.map((worker, index) => `
