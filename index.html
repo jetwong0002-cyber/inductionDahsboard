@@ -2602,7 +2602,7 @@
 
       const role = resolveAccessRole(name);
       if (!role) {
-        showLoginError('Access denied. Your username is not in the admin or visitor list.');
+        showLoginError(`Access denied for "${name}". Add this username to VISITOR_USERS (or ADMIN_USERS) in the code.`);
         return;
       }
 
