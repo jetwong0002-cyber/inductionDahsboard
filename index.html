@@ -590,7 +590,15 @@
             </div>
             <div class="field">
               <label for="filter-date">Date</label>
-              <input id="filter-date" type="date" />
+              <input
+                id="filter-date"
+                type="text"
+                inputmode="numeric"
+                maxlength="10"
+                autocomplete="off"
+                placeholder="DD/MM/YYYY"
+                aria-label="Filter date in DD/MM/YYYY format"
+              />
             </div>
             <div class="field">
               <label for="filter-company">Company</label>
@@ -721,43 +729,67 @@
     function parseDateToYmd(value) {
       if (value === null || value === undefined || value === '') return null;
 
+      // Google Sheets serial number.
       if (typeof value === 'number' && Number.isFinite(value)) {
-        const date = new Date(Math.round((value - 25569) * 86400 * 1000));
-        return Number.isNaN(date.getTime()) ? null : dateToYmd(date);
+        const utcMilliseconds = Math.round((value - 25569) * 86400 * 1000);
+        const date = new Date(utcMilliseconds);
+
+        if (Number.isNaN(date.getTime())) return null;
+
+        // Use UTC parts for spreadsheet serials to prevent timezone date shifts.
+        return `${date.getUTCFullYear()}-${pad2(date.getUTCMonth() + 1)}-${pad2(date.getUTCDate())}`;
       }
 
       const str = String(value).trim();
+      if (!str) return null;
 
-      const isoWithTime = /^\d{4}-\d{2}-\d{2}T/.exec(str);
-      if (isoWithTime) {
-        const parsed = new Date(str);
-        return Number.isNaN(parsed.getTime()) ? null : dateToYmd(parsed);
+      // ISO date or ISO datetime, for example:
+      // 2026-07-13
+      // 2026-07-13T00:00:00.000Z
+      // 2026-07-13 00:00:00
+      const iso = /^(\d{4})-(\d{1,2})-(\d{1,2})(?:[T\s].*)?$/.exec(str);
+      if (iso) {
+        const year = Number(iso[1]);
+        const month = Number(iso[2]);
+        const day = Number(iso[3]);
+
+        const testDate = new Date(year, month - 1, day);
+        const isValid =
+          testDate.getFullYear() === year &&
+          testDate.getMonth() === month - 1 &&
+          testDate.getDate() === day;
+
+        return isValid ? `${year}-${pad2(month)}-${pad2(day)}` : null;
       }
 
-      const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(str);
-      if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+      // Master-sheet format: DD/MM/YYYY.
+      // Also accepts a time after the date, for example:
+      // 13/07/2026 00:00:00
+      // 13-07-2026 8:30 AM
+      const dmy = /^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})(?:[,\sT].*)?$/.exec(str);
+      if (dmy) {
+        const day = Number(dmy[1]);
+        const month = Number(dmy[2]);
+        const year = Number(dmy[3]);
 
-      // Master sheet date format: DD/MM/YYYY
-      const slash = /^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/.exec(str);
-      if (slash) {
-        const day = Number(slash[1]);
-        const month = Number(slash[2]);
-        const year = Number(slash[3]);
+        const testDate = new Date(year, month - 1, day);
+        const isValid =
+          testDate.getFullYear() === year &&
+          testDate.getMonth() === month - 1 &&
+          testDate.getDate() === day;
 
-        // Validate the real calendar date, not only the number ranges.
-        const parsedDate = new Date(year, month - 1, day);
-        const isValidDate =
-          parsedDate.getFullYear() === year &&
-          parsedDate.getMonth() === month - 1 &&
-          parsedDate.getDate() === day;
-
-        if (isValidDate) {
-          return `${year}-${pad2(month)}-${pad2(day)}`;
-        }
+        return isValid ? `${year}-${pad2(month)}-${pad2(day)}` : null;
       }
 
-      const date = new Date(str);
-      return Number.isNaN(date.getTime()) ? null : dateToYmd(date);
+      // Handles JavaScript/Apps Script date strings such as:
+      // Mon Jul 13 2026 00:00:00 GMT+0800
+      const parsed = new Date(str);
+      if (!Number.isNaN(parsed.getTime())) {
+        return dateToYmd(parsed);
+      }
+
+      console.warn('[Longmotive] Unable to parse date:', value);
+      return null;
     }
 
     function formatDate(value) {
@@ -990,7 +1022,8 @@
     function getFilteredOverviewData() {
       const selectedCompany = els.filterCompany.value;
       const selectedBlock = els.filterBlock.value;
-      const selectedDate = els.filterDate.value;
+      const selectedDateText = els.filterDate.value.trim();
+      const selectedDate = selectedDateText ? parseDateToYmd(selectedDateText) : '';
 
       const searchDigits = getSearchDigits(els.filterSearch.value);
 
@@ -1000,7 +1033,9 @@
         const matchCompany = selectedCompany === 'All' || worker.company === selectedCompany;
         const matchBlock = selectedBlock === 'All' || worker.block === selectedBlock;
         const matchSearch = !searchDigits || (searchDigits.length === 4 && workerIcLast4 === searchDigits);
-        const matchDate = selectedDate ? worker.dateYmd === selectedDate : true;
+        const matchDate = selectedDateText
+          ? Boolean(selectedDate) && worker.dateYmd === selectedDate
+          : true;
 
         return matchCompany && matchBlock && matchSearch && matchDate;
       });
@@ -1327,7 +1362,40 @@
       renderOverviewView();
     });
 
-    [els.filterDate, els.filterCompany, els.filterBlock].forEach(input => {
+    els.filterDate.addEventListener('input', () => {
+      let digits = els.filterDate.value.replace(/\D/g, '').slice(0, 8);
+      let formatted = digits;
+
+      if (digits.length > 4) {
+        formatted = `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+      } else if (digits.length > 2) {
+        formatted = `${digits.slice(0, 2)}/${digits.slice(2)}`;
+      }
+
+      if (els.filterDate.value !== formatted) {
+        els.filterDate.value = formatted;
+      }
+
+      const value = els.filterDate.value.trim();
+
+      if (value && value.length < 10) {
+        els.kpiShowing.textContent = '0';
+        els.overviewDashboard.innerHTML =
+          '<div class="empty-state">Enter the complete date as DD/MM/YYYY.</div>';
+        return;
+      }
+
+      if (value && !parseDateToYmd(value)) {
+        els.kpiShowing.textContent = '0';
+        els.overviewDashboard.innerHTML =
+          '<div class="empty-state">Invalid date. Use DD/MM/YYYY, for example 13/07/2026.</div>';
+        return;
+      }
+
+      renderOverviewView();
+    });
+
+    [els.filterCompany, els.filterBlock].forEach(input => {
       input.addEventListener('input', renderOverviewView);
       input.addEventListener('change', renderOverviewView);
     });
