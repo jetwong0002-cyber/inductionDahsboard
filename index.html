@@ -1096,6 +1096,39 @@
       letter-spacing: 0.04em;
     }
 
+    .login-mode {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 18px;
+      padding: 5px;
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+    }
+
+    .login-mode-btn {
+      border: 0;
+      background: transparent;
+      color: #bfdbfe;
+      padding: 11px 12px;
+      border-radius: 10px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: 0.18s ease;
+    }
+
+    .login-mode-btn.active {
+      background: #fff;
+      color: #1d4ed8;
+      box-shadow: 0 8px 18px rgba(15, 23, 42, 0.18);
+    }
+
+    .login-mode-btn:hover:not(.active) {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+    }
+
     .login-card h1 {
       margin: 0 0 8px;
       font-family: var(--font-display);
@@ -1261,9 +1294,22 @@
   </style>
   <script>
     try {
-      var _u = localStorage.getItem('lm_induction_username') || '';
-      var _s = localStorage.getItem('lm_induction_session');
-      if (_s === '1' && (_u.toLowerCase() === 'jet' || _u.toLowerCase() === 'shamil')) {
+      var _raw = localStorage.getItem('lm_induction_auth_v1');
+      if (!_raw) {
+        // migrate older session keys if present
+        var _oldUser = localStorage.getItem('lm_induction_username') || '';
+        var _oldSession = localStorage.getItem('lm_induction_session');
+        if (_oldSession === '1' && _oldUser) {
+          _raw = JSON.stringify({
+            name: _oldUser,
+            role: (_oldUser.toLowerCase() === 'jet' || _oldUser.toLowerCase() === 'shamil') ? 'admin' : 'visitor',
+            active: true
+          });
+          localStorage.setItem('lm_induction_auth_v1', _raw);
+        }
+      }
+      var _auth = _raw ? JSON.parse(_raw) : null;
+      if (_auth && _auth.active && _auth.name && (_auth.role === 'admin' || _auth.role === 'visitor')) {
         document.documentElement.classList.add('authed');
       }
     } catch (e) {}
@@ -1332,9 +1378,14 @@
       <p class="login-sub">Enter your username to open today’s induction dashboard. Data loads in the background while you sign in.</p>
 
       <form id="login-form" autocomplete="off">
+        <div class="login-mode" role="tablist" aria-label="Access type">
+          <button type="button" class="login-mode-btn active" data-mode="admin" id="mode-admin-btn">Admin</button>
+          <button type="button" class="login-mode-btn" data-mode="visitor" id="mode-visitor-btn">Visitor</button>
+        </div>
+
         <div class="login-field">
-          <label for="login-name">Username</label>
-          <input type="text" id="login-name" name="login-name" placeholder="Your username" required autofocus />
+          <label for="login-name" id="login-name-label">Admin username</label>
+          <input type="text" id="login-name" name="login-name" placeholder="Jet or Shamil" required autofocus />
         </div>
 
         <p id="login-error" class="login-error" role="alert" aria-live="assertive"></p>
@@ -1347,7 +1398,7 @@
         <button type="submit" class="btn login-submit" id="login-submit-btn">Continue</button>
       </form>
 
-      <p class="login-footnote">Access is limited to authorized usernames. Stay signed in on this device until you sign out.</p>
+      <p class="login-footnote" id="login-footnote">Admins: Jet or Shamil. Visitors: enter any name to view workers (no cancel). You stay signed in until Sign out.</p>
     </div>
   </div>
 
@@ -1525,9 +1576,14 @@
   <script>
     const API_URL = "https://script.google.com/macros/s/AKfycbwyQJz65V7G7MGPqoDQH_30N9DmqrLtchF8Z98SFkUIi5TCMWzv77bkB-pyj-RZIPJ5RQ/exec";
     const API_KEY = "bdd821cd7f8e4ab4be6eae00aacb8dc3";
-    const USER_STORAGE_KEY = "lm_induction_username";
-    const SESSION_STORAGE_KEY = "lm_induction_session";
-    const ALLOWED_USERS = ["jet", "shamil"];
+    const AUTH_STORAGE_KEY = "lm_induction_auth_v1";
+    const USER_STORAGE_KEY = "lm_induction_username"; // legacy
+    const SESSION_STORAGE_KEY = "lm_induction_session"; // legacy
+    const ADMIN_USERS = ["jet", "shamil"];
+    const AUTH_COOKIE = "lm_induction_auth";
+
+    let currentUser = { name: "", role: "" }; // role: 'admin' | 'visitor'
+    let selectedLoginMode = "admin";
 
     function buildApiUrl() {
       return `${API_URL}?key=${encodeURIComponent(API_KEY)}&_=${Date.now()}`;
@@ -1537,66 +1593,123 @@
       return String(value || "").trim().toLowerCase();
     }
 
-    function isAllowedUser(value) {
-      return ALLOWED_USERS.includes(normalizeUsername(value));
+    function isAdminUser(value) {
+      return ADMIN_USERS.includes(normalizeUsername(value));
     }
 
-    function canonicalDisplayName(value) {
-      const canonical = ALLOWED_USERS.find(u => u === normalizeUsername(value));
-      return canonical ? canonical.charAt(0).toUpperCase() + canonical.slice(1) : String(value || "").trim();
+    function canCancelWorkers() {
+      return currentUser.role === "admin" && isAdminUser(currentUser.name);
     }
 
-    function readStoredUsername() {
+    function canonicalDisplayName(value, role) {
+      const normalized = normalizeUsername(value);
+      if (role === "admin") {
+        const canonical = ADMIN_USERS.find(u => u === normalized);
+        return canonical ? canonical.charAt(0).toUpperCase() + canonical.slice(1) : String(value || "").trim();
+      }
+      return String(value || "").trim().replace(/\s+/g, " ");
+    }
+
+    function writeCookie(value) {
       try {
-        return localStorage.getItem(USER_STORAGE_KEY) || "";
+        const maxAge = 60 * 60 * 24 * 180; // 180 days
+        document.cookie = `${AUTH_COOKIE}=${encodeURIComponent(value)}; path=/; max-age=${maxAge}; SameSite=Lax`;
+      } catch (_) {
+        /* ignore */
+      }
+    }
+
+    function readCookie() {
+      try {
+        const match = document.cookie.match(new RegExp(`(?:^|; )${AUTH_COOKIE}=([^;]*)`));
+        return match ? decodeURIComponent(match[1]) : "";
       } catch (_) {
         return "";
       }
     }
 
-    function storeUsername(name) {
+    function clearCookie() {
       try {
-        localStorage.setItem(USER_STORAGE_KEY, name);
+        document.cookie = `${AUTH_COOKIE}=; path=/; max-age=0; SameSite=Lax`;
       } catch (_) {
-        /* ignore quota / private mode */
+        /* ignore */
       }
     }
 
-    function clearStoredUsername() {
+    function readAuthRecord() {
       try {
+        const raw = localStorage.getItem(AUTH_STORAGE_KEY) || readCookie();
+        if (!raw) {
+          // migrate legacy keys once
+          const oldUser = localStorage.getItem(USER_STORAGE_KEY) || "";
+          const oldSession = localStorage.getItem(SESSION_STORAGE_KEY);
+          if (oldSession === "1" && oldUser) {
+            return {
+              name: oldUser,
+              role: isAdminUser(oldUser) ? "admin" : "visitor",
+              active: true
+            };
+          }
+          return null;
+        }
+        const parsed = JSON.parse(raw);
+        if (!parsed || !parsed.name || !parsed.active) return null;
+        if (parsed.role !== "admin" && parsed.role !== "visitor") return null;
+        if (parsed.role === "admin" && !isAdminUser(parsed.name)) return null;
+        return parsed;
+      } catch (_) {
+        return null;
+      }
+    }
+
+    function writeAuthRecord(record) {
+      const payload = JSON.stringify(record);
+      try {
+        localStorage.setItem(AUTH_STORAGE_KEY, payload);
+        // keep legacy username for older early-boot paths
+        localStorage.setItem(USER_STORAGE_KEY, record.name);
+        localStorage.setItem(SESSION_STORAGE_KEY, record.active ? "1" : "0");
+      } catch (_) {
+        /* ignore private mode */
+      }
+      writeCookie(payload);
+    }
+
+    function clearAuthRecord() {
+      try {
+        localStorage.removeItem(AUTH_STORAGE_KEY);
         localStorage.removeItem(USER_STORAGE_KEY);
-      } catch (_) {
-        /* ignore */
-      }
-    }
-
-    function hasActiveSession() {
-      try {
-        if (localStorage.getItem(SESSION_STORAGE_KEY) !== "1") return false;
-        return isAllowedUser(readStoredUsername());
-      } catch (_) {
-        return false;
-      }
-    }
-
-    function startSession(displayName) {
-      storeUsername(displayName);
-      try {
-        localStorage.setItem(SESSION_STORAGE_KEY, "1");
-      } catch (_) {
-        /* ignore */
-      }
-      document.documentElement.classList.add("authed");
-    }
-
-    function endSession() {
-      clearStoredUsername();
-      try {
         localStorage.removeItem(SESSION_STORAGE_KEY);
       } catch (_) {
         /* ignore */
       }
+      clearCookie();
+    }
+
+    function hasActiveSession() {
+      return Boolean(readAuthRecord());
+    }
+
+    function startSession(displayName, role) {
+      currentUser = { name: displayName, role };
+      writeAuthRecord({ name: displayName, role, active: true, ts: Date.now() });
+      document.documentElement.classList.add("authed");
+    }
+
+    function endSession() {
+      currentUser = { name: "", role: "" };
+      clearAuthRecord();
       document.documentElement.classList.remove("authed");
+    }
+
+    function restoreSessionIfAny() {
+      const auth = readAuthRecord();
+      if (!auth) return false;
+      currentUser = { name: auth.name, role: auth.role };
+      // refresh storage so cookie + localStorage stay in sync
+      writeAuthRecord({ ...auth, active: true, ts: Date.now() });
+      enterDashboard(auth.name);
+      return true;
     }
 
     let globalData = [];
@@ -1645,7 +1758,12 @@
       loginPreloadText: document.getElementById('login-preload-text'),
       loginSubmitBtn: document.getElementById('login-submit-btn'),
       logoutBtn: document.getElementById('logout-btn'),
-      loginDrop: document.getElementById('login-drop')
+      loginDrop: document.getElementById('login-drop'),
+      modeAdminBtn: document.getElementById('mode-admin-btn'),
+      modeVisitorBtn: document.getElementById('mode-visitor-btn'),
+      loginNameLabel: document.getElementById('login-name-label'),
+      loginFootnote: document.getElementById('login-footnote'),
+      heroSubtitle: document.querySelector('.hero p')
     };
 
     (function initLoginWaterDrop() {
@@ -2422,7 +2540,7 @@
     function renderTodayView() {
       const todayData = globalData.filter(worker => isToday(worker.date) && !isCancelled(worker));
       renderList(els.todayDashboard, todayData, {
-        showCancel: true,
+        showCancel: canCancelWorkers(),
         emptyText: 'No workers scheduled for today.'
       });
       drawChart('todayChart', els.todayChartNote, 'doughnut', todayData, 'Today workers by company', 'company', 'companies');
@@ -2491,7 +2609,9 @@
 
         applyPayload(payload);
         writeCache(payload);
-        setStatus('ok', `Loaded ${globalData.length} records`);
+        const roleLabel = currentUser.role === 'admin' ? 'Admin' : currentUser.role === 'visitor' ? 'Visitor' : '';
+        const who = currentUser.name ? `${currentUser.name}${roleLabel ? ` (${roleLabel})` : ''} · ` : '';
+        setStatus('ok', `${who}${globalData.length} records`);
       } catch (error) {
         console.error(error);
         if (isBackgroundRefresh) {
@@ -2561,17 +2681,24 @@
     }
 
     function enterDashboard(displayName) {
+      document.documentElement.classList.add('authed');
       els.loginGate.classList.add('hidden');
       els.appShell.classList.remove('hidden');
       document.body.style.overflow = '';
 
+      const roleLabel = currentUser.role === 'admin' ? 'Admin' : 'Visitor';
+      if (els.heroSubtitle) {
+        els.heroSubtitle.textContent = currentUser.role === 'admin'
+          ? 'Induction command center — today’s workers, schedules, and cancellation control.'
+          : 'Visitor view — browse today’s workers and records. Cancel is disabled.';
+      }
+
       if (dataReady) {
         els.filterSubtitleText.textContent = `Enter exactly 4 digits to search IC/Passport. Leave date range empty to show all ${globalData.length} loaded records.`;
         renderAll();
-        setStatus('ok', displayName ? `${displayName} · ${globalData.length} records` : `Loaded ${globalData.length} records`);
+        setStatus('ok', displayName ? `${displayName} (${roleLabel}) · ${globalData.length} records` : `Loaded ${globalData.length} records`);
       } else {
-        if (displayName) els.statusText.textContent = `Welcome, ${displayName}`;
-        // Preload hadn't finished (slow network / first-ever visit) — fall back to a normal load now that the dashboard is visible.
+        if (displayName) els.statusText.textContent = `Welcome, ${displayName} (${roleLabel})`;
         loadData(false);
       }
 
@@ -2593,18 +2720,41 @@
       els.loginError.classList.remove('show');
     }
 
+    function setLoginMode(mode) {
+      selectedLoginMode = mode === 'visitor' ? 'visitor' : 'admin';
+      els.modeAdminBtn.classList.toggle('active', selectedLoginMode === 'admin');
+      els.modeVisitorBtn.classList.toggle('active', selectedLoginMode === 'visitor');
+      if (selectedLoginMode === 'admin') {
+        els.loginNameLabel.textContent = 'Admin username';
+        els.loginName.placeholder = 'Jet or Shamil';
+        els.loginFootnote.textContent = 'Admins: Jet or Shamil only. You stay signed in on this device until Sign out.';
+      } else {
+        els.loginNameLabel.textContent = 'Your name';
+        els.loginName.placeholder = 'Enter your name';
+        els.loginFootnote.textContent = 'Visitors can view workers only (no cancel). You stay signed in on this device until Sign out.';
+      }
+      clearLoginError();
+    }
+
     function returnToLogin() {
       document.documentElement.classList.remove('authed');
       els.appShell.classList.add('hidden');
       els.loginGate.classList.remove('hidden');
       clearLoginError();
+      setLoginMode(selectedLoginMode || 'admin');
       els.loginName.focus();
       setStatus('', 'Connecting...');
     }
 
-    const savedUsername = readStoredUsername();
-    if (savedUsername) {
-      els.loginName.value = savedUsername;
+    els.modeAdminBtn.addEventListener('click', () => setLoginMode('admin'));
+    els.modeVisitorBtn.addEventListener('click', () => setLoginMode('visitor'));
+
+    const existingAuth = readAuthRecord();
+    if (existingAuth) {
+      els.loginName.value = existingAuth.name;
+      setLoginMode(existingAuth.role === 'visitor' ? 'visitor' : 'admin');
+    } else {
+      setLoginMode('admin');
     }
 
     els.loginName.addEventListener('input', clearLoginError);
@@ -2615,17 +2765,28 @@
 
       const name = els.loginName.value.trim();
       if (!name) {
-        showLoginError('Please enter your username.');
+        showLoginError(selectedLoginMode === 'admin' ? 'Please enter your admin username.' : 'Please enter your name.');
         return;
       }
 
-      if (!isAllowedUser(name)) {
-        showLoginError('Access denied. Only authorized users can open this dashboard.');
+      if (selectedLoginMode === 'admin') {
+        if (!isAdminUser(name)) {
+          showLoginError('Admin access is only for Jet or Shamil. Switch to Visitor to view only.');
+          return;
+        }
+        const displayName = canonicalDisplayName(name, 'admin');
+        startSession(displayName, 'admin');
+        enterDashboard(displayName);
         return;
       }
 
-      const displayName = canonicalDisplayName(name);
-      startSession(displayName);
+      // Visitor: any name, view-only
+      const displayName = canonicalDisplayName(name, 'visitor');
+      if (displayName.length < 2) {
+        showLoginError('Please enter a valid name (at least 2 characters).');
+        return;
+      }
+      startSession(displayName, 'visitor');
       enterDashboard(displayName);
     });
 
@@ -2636,11 +2797,14 @@
     });
 
     // Stay on dashboard after refresh / reopen on the same laptop or phone.
-    if (hasActiveSession()) {
-      enterDashboard(canonicalDisplayName(readStoredUsername()));
-    }
+    restoreSessionIfAny();
 
     async function cancelWorker(rowNumber, btnElement) {
+      if (!canCancelWorkers()) {
+        showToast('Visitors cannot cancel workers.');
+        return;
+      }
+
       const workerName = btnElement.dataset.workerName || 'this worker';
       const confirmed = window.confirm(`Cancel ${workerName}? This will update the master list if the backend succeeds.`);
       if (!confirmed) return;
