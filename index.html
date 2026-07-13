@@ -905,51 +905,70 @@
       z-index: 999;
       display: flex;
       align-items: center;
-      justify-content: center;
-      padding: 20px;
-      background:
-        radial-gradient(ellipse 70% 55% at 15% 20%, rgba(37, 99, 235, 0.4), transparent 55%),
-        radial-gradient(ellipse 55% 45% at 90% 80%, rgba(59, 130, 246, 0.3), transparent 50%),
-        linear-gradient(145deg, #0f172a 0%, #1e3a8a 55%, #2563eb 100%);
+      justify-content: flex-end;
+      padding: 28px 4vw;
+      background: linear-gradient(145deg, #0b1f3a 0%, #1e3a8a 55%, #1d4ed8 100%);
       overflow: hidden;
     }
 
-    #login-gate::before {
-      content: "";
+    .login-bg {
       position: absolute;
       inset: 0;
-      background-image:
-        linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
-      background-size: 48px 48px;
-      mask-image: radial-gradient(ellipse at center, black 20%, transparent 75%);
+      z-index: 0;
       pointer-events: none;
-      animation: gridDrift 28s linear infinite;
+      overflow: hidden;
+      background: #ffffff;
     }
 
-    @keyframes gridDrift {
-      from { transform: translate(0, 0); }
-      to { transform: translate(48px, 48px); }
+    .login-bg-layer {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2vw;
+      z-index: 1;
+    }
+
+    .login-bg-layer svg {
+      width: min(96vw, 1320px);
+      height: auto;
+      max-height: none;
+      min-height: 72vh;
+      display: block;
+      flex-shrink: 0;
+      transform: translateX(-4vw);
+    }
+
+    .login-bg-veil {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      background:
+        radial-gradient(ellipse 55% 60% at 78% 50%, rgba(15, 23, 42, 0.4), transparent 62%),
+        linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0) 40%, rgba(15, 23, 42, 0.32) 100%);
     }
 
     .login-card {
-      width: min(420px, 100%);
-      background: rgba(255, 255, 255, 0.08);
-      backdrop-filter: blur(22px);
-      border: 1px solid rgba(255, 255, 255, 0.16);
+      width: min(400px, 100%);
+      background: rgba(15, 23, 42, 0.55);
+      backdrop-filter: blur(18px) saturate(1.15);
+      border: 1px solid rgba(255, 255, 255, 0.18);
       border-radius: 28px;
       box-shadow: 0 36px 80px rgba(2, 6, 23, 0.45);
-      padding: 36px 32px 30px;
+      padding: 34px 30px 28px;
       color: #fff;
       position: relative;
-      z-index: 1;
+      z-index: 5;
+      margin-right: min(2vw, 18px);
       animation: loginIn 0.6s var(--ease-spring) both;
-      transition: transform 0.25s var(--ease-spring), box-shadow 0.25s ease;
+      transition: transform 0.25s var(--ease-spring), box-shadow 0.25s ease, background 0.25s ease;
     }
 
     .login-card:hover {
       transform: translateY(-2px);
       box-shadow: 0 40px 90px rgba(2, 6, 23, 0.5);
+      background: rgba(15, 23, 42, 0.62);
     }
 
     @keyframes loginIn {
@@ -969,25 +988,20 @@
       height: 52px;
       border-radius: 14px;
       background: #ffffff;
-      border: 1px solid rgba(147, 197, 253, 0.45);
+      border: 1px solid rgba(255, 255, 255, 0.55);
       display: flex;
       align-items: center;
       justify-content: center;
       overflow: hidden;
-      box-shadow: 0 8px 24px rgba(37, 99, 235, 0.35);
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.28);
       flex-shrink: 0;
       padding: 7px;
-      transition: transform 0.25s var(--ease-spring);
     }
 
     .login-logo svg {
       width: 100%;
       height: 100%;
       display: block;
-    }
-
-    .login-card:hover .login-logo {
-      transform: rotate(-4deg) scale(1.05);
     }
 
     .login-brand-text h2 {
@@ -1149,10 +1163,30 @@
       text-align: center;
       line-height: 1.45;
     }
-
     @media (prefers-reduced-motion: reduce) {
       .login-card { animation: none; }
-      #login-gate::before { animation: none; }
+    }
+
+    @media (max-width: 560px) {
+      #login-gate {
+        justify-content: center;
+        align-items: flex-end;
+        padding: 16px 16px 28px;
+      }
+      .login-bg-layer {
+        justify-content: center;
+        align-items: flex-start;
+        padding-top: 6vh;
+      }
+      .login-bg-layer svg {
+        width: min(120vw, 900px);
+        min-height: 50vh;
+        transform: translateX(-3vw);
+      }
+      .login-card {
+        margin-right: 0;
+        width: 100%;
+      }
     }
 
     /* Avoid login flash when restoring a saved session */
@@ -1173,6 +1207,25 @@
 </head>
 <body>
   <div id="login-gate">
+    <div class="login-bg" aria-hidden="true">
+      <div class="login-bg-layer">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" aria-hidden="true">
+          <rect width="1600" height="900" fill="#ffffff"/>
+          <g transform="translate(260,200)">
+            <path d="M0 0 V240 H240 V188 H62 V0 Z" fill="#0B3D82"/>
+            <rect x="94" y="54" width="36" height="118" rx="5" fill="#5BB6F0"/>
+            <rect x="144" y="30" width="36" height="142" rx="5" fill="#5BB6F0"/>
+            <rect x="194" y="68" width="36" height="104" rx="5" fill="#5BB6F0"/>
+            <g fill="#0B3D82" font-family="Arial Black, Arial, Helvetica, sans-serif" font-weight="900" letter-spacing="6">
+              <text x="290" y="118" font-size="100">LONG</text>
+              <text x="290" y="228" font-size="100">MOTIVE</text>
+            </g>
+          </g>
+        </svg>
+      </div>
+      <div class="login-bg-veil"></div>
+    </div>
+
     <div class="login-card">
       <div class="login-brand">
         <div class="login-logo">
