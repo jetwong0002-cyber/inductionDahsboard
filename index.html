@@ -950,7 +950,7 @@ function bootstrapSafety(html) {
       'buildExportPayload:function(state,ts){return {version:2,ts:ts!=null?ts:Date.now(),cats:state.cats,items:state.items,history:(state.history||[]).slice(-50),purchases:(state.purchases||[]).slice(-500),customIcons:state.customIcons||[]};}' +
       '};' +
       'window.InventoryDisplay={' +
-      'splitDisplayName:function(name){var parts=String(name||"").split("/");return {main:(parts[0]||"").trim(),zh:(parts[1]||"").trim()};}' +
+      'splitDisplayName:function(name){var parts=String(name||"").split("/");var primary=(parts[0]||"").trim();var secondary=(parts.slice(1).join("/")||"").trim();return {primary:primary,secondary:secondary,main:primary,zh:secondary};}' +
       '};' +
       '(function(){' +
       'var REMOTE=(location.origin&&location.origin.indexOf("http")===0)?(location.origin+"/api/sync"):"https://induction-dahsboard.vercel.app/api/sync";' +
