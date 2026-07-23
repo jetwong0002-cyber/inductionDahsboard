@@ -1,15 +1,37 @@
 const { createPool } = require('@vercel/postgres');
+const { verifySessionToken } = require('../lib/auth');
 
 function setCors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+}
+
+function getBearerToken(req) {
+  const header = req.headers && (req.headers.authorization || req.headers.Authorization);
+  if (!header || typeof header !== 'string') return '';
+  const match = header.match(/^Bearer\s+(.+)$/i);
+  return match ? match[1].trim() : '';
 }
 
 module.exports = async function handler(req, res) {
   setCors(res);
   if (req.method === 'OPTIONS') {
     return res.status(204).end();
+  }
+
+  // Inventory data is only for signed-in users: require a valid session
+  // token issued by /api/login instead of leaving this endpoint open to
+  // anyone who discovers the URL.
+  const authSecret = process.env.AUTH_SECRET;
+  if (!authSecret) {
+    return res.status(500).json({
+      error: 'Server misconfigured: AUTH_SECRET is not set in the Vercel environment variables. See README.md for setup instructions.',
+    });
+  }
+  const session = verifySessionToken(getBearerToken(req), authSecret);
+  if (!session) {
+    return res.status(401).json({ error: 'Unauthorized: please sign in again. 未授权，请重新登录。' });
   }
 
   // 1. 安全检查：如果 Vercel 没把密码传过来，温和地报错，而不是崩溃

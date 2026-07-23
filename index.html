@@ -661,13 +661,17 @@
     <div class="login-card" aria-labelledby="login-title">
       <p class="login-card-kicker">Sign in</p>
       <h1 id="login-title">Welcome back</h1>
-      <p class="login-sub">Enter your username to continue.</p>
+      <p class="login-sub">Enter your username and password to continue.</p>
 
       <form id="login-form" autocomplete="off">
         <p id="login-notice" class="login-notice" role="status" aria-live="polite"></p>
         <div class="login-field">
           <label for="username">Username</label>
-          <input id="username" name="username" placeholder="Enter your username" required autofocus />
+          <input id="username" name="username" placeholder="Enter your username" autocomplete="username" required autofocus />
+        </div>
+        <div class="login-field">
+          <label for="password">Password</label>
+          <input id="password" name="password" type="password" placeholder="Enter your password" autocomplete="current-password" required />
         </div>
         <p id="login-error" class="login-error error" role="alert" aria-live="assertive"></p>
         <button class="login-submit" type="submit">Continue</button>
@@ -770,10 +774,9 @@
   const ACTIVITY_KEY = "lm_combined_dashboard_activity_v1";
   const INACTIVITY_LIMIT_MS = 2 * 60 * 60 * 1000; // auto sign-out after 2 hours idle
 
-  const ADMIN_USERS = ["Jet18", "Shamil01"];
-  const VISITOR_USERS = ["Camilia01"];
-  const WORKER_USERS = ["Aungthu1"];
-
+  // Valid usernames/passwords are never stored in this file. They live only
+  // in the server's AUTH_USERS/AUTH_SECRET environment variables and are
+  // checked by /api/login, which returns a signed session token.
   let session = null;
   let inductionPreloadPromise = null;
   let lastActivityAt = Date.now();
@@ -785,6 +788,7 @@
     frameShell: document.getElementById("frame-shell"),
     form: document.getElementById("login-form"),
     username: document.getElementById("username"),
+    password: document.getElementById("password"),
     error: document.getElementById("login-error"),
     welcomeTitle: document.getElementById("welcome-title"),
     welcomeSubtitle: document.getElementById("welcome-subtitle"),
@@ -888,25 +892,31 @@
       .toLowerCase();
   }
 
-  function listHas(list, name) {
-    const normalized = normalizeName(name);
-    return list.map(normalizeName).includes(normalized);
-  }
-
   function titleCaseName(value) {
     const cleaned = String(value || "").trim().replace(/\s+/g, " ");
     return cleaned.replace(/\b\w/g, char => char.toUpperCase());
   }
 
-  function resolveRole(name) {
-    if (listHas(ADMIN_USERS, name)) return "admin";
-    if (listHas(VISITOR_USERS, name)) return "visitor";
-    if (listHas(WORKER_USERS, name)) return "worker";
-    return null;
-  }
-
-  function isKnownUser(name) {
-    return resolveRole(name) !== null;
+  // Reads the (unverified) expiry from a server-issued session token, purely
+  // for client-side UX (e.g. showing the login screen sooner instead of
+  // waiting for an API call to fail). The server independently verifies the
+  // token's signature on every request, so a tampered token is never trusted.
+  function decodeTokenExpiry(token) {
+    try {
+      const encodedPayload = String(token || "").split(".")[0];
+      const normalized = encodedPayload.replace(/-/g, "+").replace(/_/g, "/");
+      const padded = normalized + "=".repeat((4 - (normalized.length % 4)) % 4);
+      const json = decodeURIComponent(
+        atob(padded)
+          .split("")
+          .map(char => "%" + char.charCodeAt(0).toString(16).padStart(2, "0"))
+          .join("")
+      );
+      const payload = JSON.parse(json);
+      return typeof payload.exp === "number" ? payload.exp : null;
+    } catch (_) {
+      return null;
+    }
   }
 
   function saveSession(nextSession) {
@@ -924,8 +934,9 @@
       const raw = localStorage.getItem(SESSION_KEY);
       if (!raw) return null;
       const parsed = JSON.parse(raw);
-      if (!parsed || !parsed.name || !parsed.role) return null;
-      if (resolveRole(parsed.name) !== parsed.role) return null;
+      if (!parsed || !parsed.name || !parsed.role || !parsed.token) return null;
+      const expiresAt = decodeTokenExpiry(parsed.token);
+      if (expiresAt !== null && Date.now() > expiresAt) return null;
       return parsed;
     } catch (_) {
       return null;
@@ -1033,17 +1044,24 @@
   }
 
   function syncInductionAccessLists(html) {
+    // The embedded induction dashboard re-checks its own ADMIN_USERS/
+    // VISITOR_USERS lists against the injected auth record. Rather than
+    // exposing every valid username (as before), only inject the current,
+    // already-authenticated user's own name/role — that's the only entry
+    // needed for its internal check to pass.
+    const adminNames = session.role === "admin" ? [session.name] : [];
+    const visitorNames = session.role === "visitor" ? [session.name] : [];
     let prepared = replaceRequired(
       html,
       'const ADMIN_USERS = ["jet", "shamil"];',
-      "const ADMIN_USERS = " + formatUserList(ADMIN_USERS) + ";",
+      "const ADMIN_USERS = " + formatUserList(adminNames) + ";",
       "Induction admin list"
     );
     prepared = prepared.replace(
       /const VISITOR_USERS = \[[\s\S]*?\];/,
-      "const VISITOR_USERS = " + formatUserList(VISITOR_USERS) + ";"
+      "const VISITOR_USERS = " + formatUserList(visitorNames) + ";"
     );
-    if (!prepared.includes("const VISITOR_USERS = " + formatUserList(VISITOR_USERS) + ";")) {
+    if (!prepared.includes("const VISITOR_USERS = " + formatUserList(visitorNames) + ";")) {
       throw new Error("Induction visitor list patch failed");
     }
     return prepared;
@@ -1116,7 +1134,12 @@ function bootstrapSafety(html) {
       'if(!isSyncUrl(url))return origFetch(input,init);' +
       'var method=String((init&&init.method)||"GET").toUpperCase();' +
       'var remote=REMOTE+(url.indexOf("?")>=0?url.slice(url.indexOf("?")):"");' +
-      'return origFetch(remote,init).then(function(res){' +
+      'var authToken=(window.COMBINED_DASHBOARD_USER&&window.COMBINED_DASHBOARD_USER.token)||"";' +
+      'var reqInit=Object.assign({},init);' +
+      'var reqHeaders=new Headers(reqInit.headers||{});' +
+      'if(authToken)reqHeaders.set("Authorization","Bearer "+authToken);' +
+      'reqInit.headers=reqHeaders;' +
+      'return origFetch(remote,reqInit).then(function(res){' +
       'return res.text().then(function(text){' +
       'var body=null;try{body=text?JSON.parse(text):null;}catch(e){body={error:text||("HTTP "+res.status)};}' +
       'if(res.ok&&!(body&&body.error)){' +
@@ -1200,6 +1223,7 @@ function signOut(notice) {
     els.frameShell.classList.remove("is-loading");
     showOnly("login");
     els.username.value = "";
+    els.password.value = "";
     if (notice) {
       showLoginNotice(notice);
     } else {
@@ -1212,26 +1236,61 @@ function signOut(notice) {
     event.preventDefault();
     els.error.classList.remove("show");
     const rawName = els.username.value;
+    const password = els.password.value;
     const normalized = normalizeName(rawName);
     if (!normalized) {
       els.error.textContent = "Please enter a username.";
       els.error.classList.add("show");
       return;
     }
-    const role = resolveRole(rawName);
-    if (!role) {
-      els.error.textContent = "Access denied.";
+    if (!password) {
+      els.error.textContent = "Please enter a password.";
       els.error.classList.add("show");
       return;
     }
-    saveSession({ name: titleCaseName(rawName), role, dashboard: null, ts: Date.now() });
-    recordActivity();
-    if (role === "worker") {
-      openDashboard("safety");
-    } else {
-      preloadInductionData(true);
-      enterChooser();
-    }
+
+    const submitBtn = els.form.querySelector(".login-submit");
+    if (submitBtn) submitBtn.disabled = true;
+
+    fetch("/api/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: rawName, password: password })
+    })
+      .then(response =>
+        response
+          .json()
+          .catch(() => ({}))
+          .then(body => ({ ok: response.ok, body }))
+      )
+      .then(({ ok, body }) => {
+        if (!ok || !body || !body.token || !body.role) {
+          throw new Error((body && body.error) || "Access denied.");
+        }
+        const role = body.role;
+        els.password.value = "";
+        saveSession({
+          name: body.displayName || titleCaseName(rawName),
+          role,
+          token: body.token,
+          dashboard: null,
+          ts: Date.now()
+        });
+        recordActivity();
+        if (role === "worker") {
+          openDashboard("safety");
+        } else {
+          preloadInductionData(true);
+          enterChooser();
+        }
+      })
+      .catch(error => {
+        els.error.textContent = error.message || "Access denied.";
+        els.error.classList.add("show");
+      })
+      .finally(() => {
+        if (submitBtn) submitBtn.disabled = false;
+      });
   });
 
   document.querySelectorAll("[data-dashboard]").forEach(button => {
